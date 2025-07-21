@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
-const socket = io('http://localhost:4000'); // Use env variable in production
+const socket = io(backendUrl); // Use env variable in production
 
 function App() {
     const [playerName, setPlayerName] = useState('');
