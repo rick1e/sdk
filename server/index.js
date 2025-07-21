@@ -14,6 +14,7 @@ const {
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+const PORT = process.env.PORT || 4000;
 
 let games = {};  // in-memory game store
 
@@ -72,7 +73,7 @@ io.on('connection', socket => {
 
 });
 
-server.listen(4000, () => console.log('Server listening on port 4000'));
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 
 if (process.env.NODE_ENV === 'production') {
     const clientPath = path.join(__dirname, '../client/build');
