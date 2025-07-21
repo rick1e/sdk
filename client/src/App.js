@@ -207,7 +207,7 @@ function App() {
                     const player = game.players.find(p => p.id === meld.playerId);
                     return (
                         <div key={idx}>
-                            <strong>{meld.by || 'Player'}:</strong>{' '}
+                            <strong>{player.name || 'Player'}:</strong>{' '}
                             {meld.cards.map(card => renderCard(card))}
                         </div>
                     );
