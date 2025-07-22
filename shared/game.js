@@ -166,6 +166,47 @@ function layDownMeld(game, playerId, cards) {
     return { success: true };
 }
 
+function addToMeld(game, playerId, meldIndex, cards) {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return { error: 'Player not found' };
+    if (!game.melds || !game.melds[meldIndex]) return { error: 'Invalid meld' };
+
+    const meld = game.melds[meldIndex];
+
+    // Make a copy of meld cards and add new cards
+    const newMeldCards = [...meld.cards, ...cards];
+
+    // Check validity
+    if (!(isValidSet(newMeldCards) || isValidRun(newMeldCards))) {
+        return { error: 'Invalid meld after adding cards' };
+    }
+
+    // Verify all cards are in hand
+    for (let card of cards) {
+        const index = player.hand.findIndex(c => isSameCard(c, card));
+        if (index === -1) return { error: 'Card not in hand' };
+    }
+
+    // Remove cards from hand
+    for (let card of cards) {
+        const index = player.hand.findIndex(c => isSameCard(c, card));
+        player.hand.splice(index, 1);
+    }
+
+    // Update meld
+    meld.cards = newMeldCards;
+
+    // Check win
+    if (player.hand.length === 0) {
+        game.winner = playerId;
+        game.phase = 'finished';
+        return { success: true, winner: playerId };
+    }
+
+    return { success: true };
+}
+
+
 
 
 module.exports = {
@@ -174,5 +215,6 @@ module.exports = {
     startGame,
     drawCard,
     discardCard,
-    layDownMeld
+    layDownMeld,
+    addToMeld
 };

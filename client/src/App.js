@@ -11,6 +11,7 @@ function App() {
     const [playerId, setPlayerId] = useState('');
     const [selectedCard, setSelectedCard] = useState(null);
     const [meldSelection, setMeldSelection] = useState([]);
+    const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
 
     useEffect(() => {
         socket.on('connect', () => {
@@ -197,6 +198,22 @@ function App() {
                 </button>
             )}
 
+            {meldSelection.length > 0 && selectedMeldIndex !== null && (
+                <button onClick={() => {
+                    socket.emit('add_to_meld', {
+                        gameId,
+                        meldIndex: selectedMeldIndex,
+                        cards: meldSelection
+                    }, (res) => {
+                        if (res.error) alert(res.error);
+                        setMeldSelection([]);
+                        setSelectedMeldIndex(null);
+                    });
+                }}>
+                    Add to Selected Meld
+                </button>
+            )}
+
 
             <h3>Top of Discard Pile</h3>
             {renderCard(game.discardPile.slice(-1)[0])}
@@ -205,16 +222,35 @@ function App() {
             {game.melds && game.melds.length > 0 ? (
                 game.melds.map((meld, idx) => {
                     const player = game.players.find(p => p.id === meld.playerId);
+                    const isSelected = selectedMeldIndex === idx;
+
                     return (
-                        <div key={idx}>
+                        <div key={idx} style={{ marginBottom: '10px' }}>
                             <strong>{player.name || 'Player'}:</strong>{' '}
                             {meld.cards.map(card => renderCard(card))}
+                            <button
+                                style={{
+                                    marginLeft: '10px',
+                                    backgroundColor: isSelected ? '#007bff' : '#f0f0f0',
+                                    color: isSelected ? 'white' : 'black',
+                                    border: '1px solid gray',
+                                    cursor: 'pointer',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                }}
+                                onClick={() => {
+                                    setSelectedMeldIndex(isSelected ? null : idx);
+                                }}
+                            >
+                                {isSelected ? 'Selected' : 'Add Here'}
+                            </button>
                         </div>
                     );
                 })
             ) : (
                 <p>No melds yet</p>
             )}
+
 
             {game.phase === 'finished' && (
                 <div style={{ padding: '1em', backgroundColor: '#dff0d8', marginTop: '1em' }}>

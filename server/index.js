@@ -8,7 +8,8 @@ const {
     startGame,
     drawCard,
     discardCard,
-    layDownMeld
+    layDownMeld,
+    addToMeld
 } = require('../shared/game');
 
 const app = express();
@@ -70,6 +71,16 @@ io.on('connection', socket => {
         io.to(gameId).emit('game_update', game);
         cb(result);
     });
+
+    socket.on('add_to_meld', ({ gameId, meldIndex, cards }, cb) => {
+        const game = games[gameId];
+        if (!game) return cb({ error: 'Game not found' });
+
+        const result = addToMeld(game, socket.id, meldIndex, cards);
+        io.to(gameId).emit('game_update', game);
+        cb(result);
+    });
+
 
 });
 
