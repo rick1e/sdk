@@ -67,6 +67,24 @@ function startGame(game) {
     game.currentPlayerIndex = 0;
 }
 
+function resetGame(game) {
+    const deck = createDeck();
+    const hands = dealCards(deck, game.players.length);
+
+    game.players.forEach((p, idx) => {
+        p.hand = hands[idx];
+    });
+
+    game.deck = deck;
+    game.discardPile = [deck.pop()];
+    game.phase = 'drawing';
+    game.currentPlayerIndex = 0;
+    game.started = true;
+    game.melds = [];
+    game.winner = null;
+}
+
+
 function drawCard(game, playerId, fromDiscard = false) {
     const player = game.players[game.currentPlayerIndex];
     if (player.id !== playerId || game.phase !== 'drawing') return { error: 'Not your turn or wrong phase' };
@@ -216,5 +234,6 @@ module.exports = {
     drawCard,
     discardCard,
     layDownMeld,
-    addToMeld
+    addToMeld,
+    resetGame
 };

@@ -76,6 +76,15 @@ function App() {
         });
     };
 
+    const playAgain = () => {
+        socket.emit('reset_game', { gameId }, (res) => {
+            if (res.error) alert(res.error);
+            setSelectedCard(null);
+            setMeldSelection([]);
+            setSelectedMeldIndex(null);
+        });
+    };
+
     const drawCard = (fromDiscard = false) => {
         socket.emit('draw_card', { gameId, fromDiscard }, (res) => {
             if (res.error) alert(res.error);
@@ -285,6 +294,11 @@ function App() {
             {game.phase === 'finished' && (
                 <div style={{ padding: '1em', backgroundColor: '#dff0d8', marginTop: '1em' }}>
                     <h2>🎉 {game.players.find(p => p.id === game.winner)?.name || 'A player'} has won!</h2>
+                    {isMyTurn() && (
+                        <button onClick={playAgain}>
+                            Play Again
+                        </button>
+                    )}
                 </div>
             )}
         </div>
