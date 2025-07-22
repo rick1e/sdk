@@ -212,7 +212,9 @@ function addToMeld(game, playerId, meldIndex, cards) {
     }
 
     // Update meld
-    meld.cards = newMeldCards;
+    meld.cards = sortMeld(newMeldCards);
+
+
 
     // Check win
     if (player.hand.length === 0) {
@@ -223,6 +225,58 @@ function addToMeld(game, playerId, meldIndex, cards) {
 
     return { success: true };
 }
+
+function sortMeld(cards) {
+    const nonJokers = cards.filter(c => c.rank !== 'JOKER');
+    const jokers = cards.filter(c => c.rank === 'JOKER');
+
+    if (nonJokers.length === 0) return jokers; // all jokers? return as-is
+
+    const isRun = nonJokers.every(card => card.suit === nonJokers[0].suit);
+    const isSet = nonJokers.every(card => card.rank === nonJokers[0].rank);
+
+    if (isSet) {
+        // Sort by suit; Jokers at end
+        const sortedSet = [...nonJokers].sort((a, b) => a.suit.localeCompare(b.suit));
+        return [...sortedSet, ...jokers];
+    }
+
+    if (isRun) {
+        // Sort non-jokers by rank
+        const sortedRun = [...nonJokers].sort((a, b) => a.rank - b.rank);
+
+        // Insert jokers in positions where rank gaps exist
+        let runWithJokers = [];
+        let jokerCount = jokers.length;
+
+        for (let i = 0; i < sortedRun.length; i++) {
+            runWithJokers.push(sortedRun[i]);
+
+            if (i < sortedRun.length - 1) {
+                const currVal = sortedRun[i].rank;
+                const nextVal = sortedRun[i + 1].rank;
+                const gap = nextVal - currVal - 1;
+
+                for (let g = 0; g < gap && jokerCount > 0; g++) {
+                    runWithJokers.push({ rank: 'JOKER' });
+                    jokerCount--;
+                }
+            }
+        }
+
+        // Append leftover jokers (likely at end of run)
+        for (let i = 0; i < jokerCount; i++) {
+            runWithJokers.push({ rank: 'JOKER' });
+        }
+
+        return runWithJokers;
+    }
+
+    // Fallback: sort non-jokers by rank and stick jokers at end
+    const fallback = [...nonJokers].sort((a, b) => a.rank - b.rank);
+    return [...fallback, ...jokers];
+}
+
 
 
 
