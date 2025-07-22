@@ -265,7 +265,7 @@ function App() {
 
                     return (
                         <div key={idx} style={{ marginBottom: '10px' }}>
-                            <strong>{player.name || 'Player'}:</strong>{' '}
+                            <strong>{player?.name || 'Player'}:</strong>{' '}
                             {meld.cards.map(card => renderCard(card))}
                             <button
                                 style={{
