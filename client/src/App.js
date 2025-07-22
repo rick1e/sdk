@@ -12,6 +12,8 @@ function App() {
     const [selectedCard, setSelectedCard] = useState(null);
     const [meldSelection, setMeldSelection] = useState([]);
     const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
+    const [draggingIndex, setDraggingIndex] = useState(null);
+    const [dragOverIndex, setDragOverIndex] = useState(null);
 
     useEffect(() => {
         const storedName = localStorage.getItem('playerName');
@@ -208,23 +210,49 @@ function App() {
             )}
 
             <h3>Your Hand</h3>
-            <div>
-                {hand.map((card) => {
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                {hand.map((card, index) => {
                     const isSelected = selectedCard === card;
                     const isInMeld = meldSelection.includes(card);
-                    return renderCard(card, () => {
-                        if (game.phase === 'discarding') {
-                            setSelectedCard(card);
-                        } else {
-                            setMeldSelection((prev) =>
-                                isInMeld
-                                    ? prev.filter((c) => c !== card)
-                                    : [...prev, card]
-                            );
-                        }
-                    }, isSelected || isInMeld);
+
+                    return (
+                        <div
+                            key={index}
+                            draggable
+                            onDragStart={() => setDraggingIndex(index)}
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                setDragOverIndex(index);
+                            }}
+                            onDrop={() => {
+                                if (draggingIndex === null || draggingIndex === index) return;
+                                const updated = [...hand];
+                                const [movedCard] = updated.splice(draggingIndex, 1);
+                                updated.splice(index, 0, movedCard);
+                                setGame({
+                                    ...game,
+                                    players: game.players.map(p =>
+                                        p.id === playerId ? { ...p, hand: updated } : p
+                                    )
+                                });
+                                setDraggingIndex(null);
+                                setDragOverIndex(null);
+                            }}
+                        >
+                            {renderCard(card, () => {
+                                if (game.phase === 'discarding') {
+                                    setSelectedCard(card);
+                                } else {
+                                    setMeldSelection((prev) =>
+                                        isInMeld ? prev.filter((c) => c !== card) : [...prev, card]
+                                    );
+                                }
+                            }, isSelected || isInMeld)}
+                        </div>
+                    );
                 })}
             </div>
+
 
             {meldSelection.length >= 3 && (
                 <button onClick={() => {
