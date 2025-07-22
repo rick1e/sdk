@@ -41,6 +41,21 @@ io.on('connection', socket => {
         cb({ success: true });
     });
 
+    socket.on('rejoin_game', ({ gameId, playerName }, cb) => {
+        const game = games[gameId];
+        if (!game) return cb({ error: 'Game not found' });
+
+        const player = game.players.find(p => p.name === playerName);
+        if (!player) return cb({ error: 'Player not found in game' });
+
+        // Update socket ID for the rejoining player
+        player.id = socket.id;
+
+        socket.join(gameId);
+        cb({ success: true, game });
+    });
+
+
     socket.on('start_game', ({ gameId }, cb) => {
         const game = games[gameId];
         if (!game) return cb({ error: 'Game not found' });

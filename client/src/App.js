@@ -14,6 +14,26 @@ function App() {
     const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
 
     useEffect(() => {
+        const storedName = localStorage.getItem('playerName');
+        const storedGameId = localStorage.getItem('gameId');
+
+        if (storedName && storedGameId) {
+            setPlayerName(storedName);
+            setGameId(storedGameId);
+
+            socket.emit('rejoin_game', {
+                gameId: storedGameId,
+                playerName: storedName
+            }, (res) => {
+                if (res.success) {
+                    setGame(res.game);
+                    setPlayerId(socket.id);
+                }
+            });
+        }
+    }, []);
+
+    useEffect(() => {
         socket.on('connect', () => {
             setPlayerId(socket.id); // Identify player
         });
@@ -40,6 +60,15 @@ function App() {
             if (res.error) alert(res.error);
         });
     };
+
+    const rejoinGame = () => {
+        if (!playerName || !gameId) return alert('Enter name and game ID');
+        socket.emit('rejoin_game', { gameId, playerName }, (res) => {
+            if (res.error) return alert(res.error);
+            setGame(res.game);
+            setPlayerId(socket.id); // update local ID
+        });
+    }
 
     const startGame = () => {
         socket.emit('start_game', { gameId }, (res) => {
@@ -124,6 +153,7 @@ function App() {
                 <br />
                 <button onClick={createGame}>Create Game</button>
                 <button onClick={joinGame}>Join Game</button>
+                <button onClick={rejoinGame}>Rejoin Game</button>
             </div>
         );
     }
