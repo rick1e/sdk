@@ -133,23 +133,26 @@ function isValidSet(cards) {
 
 function isValidRun(cards) {
     if (cards.length < 3) return false;
-    const jokers = cards.filter(c => c.rank === 'JOKER').length;
-    const nonJokers = cards.filter(c => c.rank !== 'JOKER').sort((a, b) => a.rank - b.rank);
 
-    if (nonJokers.some((c, i, arr) => i > 0 && c.suit !== arr[0].suit)) return false;
+    const jokers = cards.filter(c => c.rank === 'JOKER');
+    let nonJokers = cards.filter(c => c.rank !== 'JOKER');
+    if (nonJokers.length === 0) return false;
 
-    let expected = nonJokers[0].rank;
+    // All non-joker cards must be same suit
+    const suitSet = new Set(nonJokers.map(c => c.suit));
+    if (suitSet.size > 1) return false;
+
+    // Sort non-joker cards by rank
+    nonJokers.sort((a, b) => a.rank - b.rank);
+
+    let gaps = 0;
     for (let i = 1; i < nonJokers.length; i++) {
-        expected++;
-        if (nonJokers[i].rank !== expected) {
-            if (jokers > 0) {
-                expected--; // assume a joker is inserted
-            } else {
-                return false;
-            }
-        }
+        const diff = nonJokers[i].rank - nonJokers[i - 1].rank;
+        if (diff === 0) return false; // duplicate rank, not valid
+        gaps += diff - 1;
     }
-    return true;
+
+    return jokers.length >= gaps;
 }
 
 function layDownMeld(game, playerId, cards) {
@@ -289,5 +292,6 @@ module.exports = {
     discardCard,
     layDownMeld,
     addToMeld,
-    resetGame
+    resetGame,
+    isValidRun
 };
