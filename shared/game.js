@@ -187,6 +187,48 @@ function layDownMeld(game, playerId, cards) {
     return { success: true };
 }
 
+function layDownMeldNew(game, playerId, melds) {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return { error: 'Player not found' };
+    if (game.phase !== 'playing') return { error: 'Game not in playing phase' };
+
+    // Validate melds
+    const allValid = melds.every(isValidMeld); // assumes isValidMeld exists
+    if (!allValid) return { error: 'One or more melds are invalid' };
+
+    // Rule: Require 3 melds to lay down
+    if (!player.hasLaidDown && game.rules?.requireThreeMeldsToLay) {
+        if (melds.length < 3) {
+            return { error: 'You must have at least 3 melds to lay down in this game.' };
+        }
+    }
+
+    // Check if all cards exist in player hand
+    const allMeldCards = melds.flat();
+    const handCopy = [...player.hand];
+
+    for (const card of allMeldCards) {
+        const index = handCopy.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+        if (index === -1) return { error: 'Card not found in hand' };
+        handCopy.splice(index, 1); // remove from copy
+    }
+
+    // Commit: Remove cards and mark player
+    player.hand = handCopy;
+    player.hasLaidDown = true;
+
+    // Add to table
+    melds.forEach(meld => {
+        game.melds.push({
+            playerId,
+            cards: sortMeld(meld), // optional: sort for runs
+        });
+    });
+
+    return { success: true, game };
+}
+
+
 function addToMeld(game, playerId, meldIndex, cards) {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return { error: 'Player not found' };
@@ -291,6 +333,7 @@ module.exports = {
     drawCard,
     discardCard,
     layDownMeld,
+    layDownMeldNew,
     addToMeld,
     resetGame,
     isValidRun

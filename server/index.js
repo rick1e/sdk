@@ -10,7 +10,7 @@ const {
     discardCard,
     layDownMeld,
     addToMeld,
-    resetGame
+    resetGame, layDownMeldNew
 } = require('../shared/game');
 
 const app = express();
@@ -97,6 +97,30 @@ io.on('connection', socket => {
         io.to(gameId).emit('game_update', game);
         cb(result);
     });
+
+    socket.on('lay_down_meld_list', ({ gameId, melds }, cb) => {
+        const game = games[gameId];
+        if (!game) return cb({ error: 'Game not found' });
+
+        const result = layDownMeldNew(game, socket.id, melds);
+        io.to(gameId).emit('game_update', game);
+        cb(result);
+    });
+
+    socket.on('update_hand_order', ({ gameId, newHand }, callback) => {
+        const game = games[gameId];
+        if (!game) return callback({ error: 'Game not found' });
+
+        const player = game.players.find(p => p.id === socket.id);
+        if (!player) return callback({ error: 'Player not found' });
+
+        player.hand = newHand; // Store new order
+        callback({ success: true });
+
+        // Optionally emit game update to all players
+        io.to(gameId).emit('game_update', game);
+    });
+
 
     socket.on('add_to_meld', ({ gameId, meldIndex, cards }, cb) => {
         const game = games[gameId];

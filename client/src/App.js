@@ -101,6 +101,28 @@ function App() {
         });
     };
 
+    const onLayDownList = () => {
+        // Example: selecting cards in groups of melds
+        const melds = [
+            //selectedCards1, // First meld
+            //selectedCards2, // Second meld
+            //selectedCards3, // Third meld (if needed)
+        ];
+
+        socket.emit('lay_down_meld_list', { gameId, melds }, (res) => {
+            if (res.error) {
+                alert(res.error);
+            }
+        });
+    };
+
+    const onLayDown = () => {
+        socket.emit('lay_down_meld', { gameId, cards: meldSelection }, (res) => {
+            if (res.error) alert(res.error);
+            setMeldSelection([]);
+        });
+    };
+
     const isMyTurn = () => {
         return game?.players?.[game.currentPlayerIndex]?.id === playerId;
     };
@@ -235,6 +257,15 @@ function App() {
                                         p.id === playerId ? { ...p, hand: updated } : p
                                     )
                                 });
+                                socket.emit('update_hand_order', {
+                                    gameId,
+                                    newHand: updated
+                                }, (res) => {
+                                    if (res.error) {
+                                        console.error(res.error);
+                                        alert(res.error);
+                                    }
+                                });
                                 setDraggingIndex(null);
                                 setDragOverIndex(null);
                             }}
@@ -255,12 +286,7 @@ function App() {
 
 
             {meldSelection.length >= 3 && (
-                <button onClick={() => {
-                    socket.emit('lay_down_meld', { gameId, cards: meldSelection }, (res) => {
-                        if (res.error) alert(res.error);
-                        setMeldSelection([]);
-                    });
-                }}>
+                <button onClick={onLayDown}>
                     Lay Down Meld
                 </button>
             )}

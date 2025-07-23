@@ -11,6 +11,23 @@ describe('isValidRun', () => {
         expect(isValidRun(cards)).toBe(true);
     });
 
+    it('valid run without A K Q', () => {
+        const cards = [
+            { rank: 1, suit: '♠' },
+            { rank: 13, suit: '♠' },
+            { rank: 12, suit: '♠' }
+        ];
+        expect(isValidRun(cards)).toBe(true);
+    });
+    it('valid run without jokers', () => {
+        const cards = [
+            { rank: 4, suit: '♠' },
+            { rank: 5, suit: '♠' },
+            { rank: 6, suit: '♠' }
+        ];
+        expect(isValidRun(cards)).toBe(true);
+    });
+
     it('valid run with one joker in middle', () => {
         const cards = [
             { rank: 4, suit: '♠' },
