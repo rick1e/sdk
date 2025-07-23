@@ -131,28 +131,40 @@ function isValidSet(cards) {
     return new Set(ranks).size === 1;
 }
 
-function isValidRun(cards) {
-    if (cards.length < 3) return false;
+function isValidRun(cards, minLength = 3) {
+    if (cards.length < minLength) return false;
 
     const jokers = cards.filter(c => c.rank === 'JOKER');
-    let nonJokers = cards.filter(c => c.rank !== 'JOKER');
+    const nonJokers = cards.filter(c => c.rank !== 'JOKER');
     if (nonJokers.length === 0) return false;
 
-    // All non-joker cards must be same suit
+    // All non-jokers must have the same suit
     const suitSet = new Set(nonJokers.map(c => c.suit));
     if (suitSet.size > 1) return false;
 
-    // Sort non-joker cards by rank
-    nonJokers.sort((a, b) => a.rank - b.rank);
+    // Try both Ace-low and Ace-high
+    return (
+        checkRunWithAce(nonJokers, jokers.length, false) || // Ace as 1
+        checkRunWithAce(nonJokers, jokers.length, true)    // Ace as 14
+    );
+}
+
+function checkRunWithAce(nonJokers, jokerCount, aceHigh) {
+    const ranks = nonJokers.map(card => {
+        if (card.rank === 1 && aceHigh) return 14;
+        return card.rank;
+    });
+
+    ranks.sort((a, b) => a - b);
 
     let gaps = 0;
-    for (let i = 1; i < nonJokers.length; i++) {
-        const diff = nonJokers[i].rank - nonJokers[i - 1].rank;
-        if (diff === 0) return false; // duplicate rank, not valid
+    for (let i = 1; i < ranks.length; i++) {
+        const diff = ranks[i] - ranks[i - 1];
+        if (diff === 0) return false; // Duplicate rank
         gaps += diff - 1;
     }
 
-    return jokers.length >= gaps;
+    return jokerCount >= gaps;
 }
 
 function layDownMeld(game, playerId, cards) {

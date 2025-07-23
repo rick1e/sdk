@@ -348,11 +348,10 @@ function App() {
             {game.phase === 'finished' && (
                 <div style={{ padding: '1em', backgroundColor: '#dff0d8', marginTop: '1em' }}>
                     <h2>🎉 {game.players.find(p => p.id === game.winner)?.name || 'A player'} has won!</h2>
-                    {isMyTurn() && (
-                        <button onClick={playAgain}>
-                            Play Again
-                        </button>
-                    )}
+                    <button onClick={playAgain}>
+                        Play Again
+                    </button>
+
                 </div>
             )}
         </div>
