@@ -8,9 +8,10 @@ const {
     startGame,
     drawCard,
     discardCard,
-    layDownMeld,
     addToMeld,
-    resetGame, layDownMeldNew
+    resetGame,
+    layDownMeldNew,
+    isSameMeld
 } = require('../shared/game');
 
 const app = express();
@@ -112,7 +113,7 @@ io.on('connection', socket => {
         io.to(gameId).emit('game_update', game);
     });
 
-    socket.on('update_meld_draft', ({ gameId, meldsToLay, hand }, callback) => {
+    socket.on('update_meld_draft_add', ({ gameId, meldsToLay, hand }, callback) => {
         const game = games[gameId];
         if (!game) return callback({ error: 'Game not found' });
 
@@ -121,6 +122,26 @@ io.on('connection', socket => {
 
         player.hand = hand; // or validate before setting
         player.meldsToLay = meldsToLay;
+
+        callback({ success: true });
+
+        // Optionally emit game update to all players
+        io.to(gameId).emit('game_update', game);
+    });
+
+    socket.on('update_meld_draft_remove', ({ gameId, meld }, callback) => {
+        const game = games[gameId];
+        if (!game) return callback({ error: 'Game not found' });
+
+        const player = game.players.find(p => p.id === socket.id);
+        if (!player) return callback({ error: 'Player not found' });
+
+        // Find and remove the exact meld
+        player.meldsToLay = player.meldsToLay.filter(existingMeld =>
+            !isSameMeld(existingMeld, meld)
+        );
+        // Optionally restore those cards to the player's hand
+        player.hand.push(...meld);
 
         callback({ success: true });
 

@@ -349,6 +349,20 @@ function sortMeld(cards) {
     return [...fallback, ...jokers];
 }
 
+function isSameMeld(meldA, meldB) {
+    if (meldA.length !== meldB.length) return false;
+    const sortedA = [...meldA].sort(cardSort);
+    const sortedB = [...meldB].sort(cardSort);
+    return sortedA.every((card, i) =>
+        card.rank === sortedB[i].rank && card.suit === sortedB[i].suit
+    );
+}
+
+function cardSort(a, b) {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.suit.localeCompare(b.suit);
+}
+
 
 
 
@@ -359,9 +373,9 @@ module.exports = {
     startGame,
     drawCard,
     discardCard,
-    layDownMeld,
     layDownMeldNew,
     addToMeld,
     resetGame,
-    isValidRun
+    isValidRun,
+    isSameMeld
 };

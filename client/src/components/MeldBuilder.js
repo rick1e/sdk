@@ -11,10 +11,22 @@ export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, hand,
         const updatedHand = hand.filter(c => !cards.includes(c));
 
         // Let the server handle the real update
-        emit('update_meld_draft', {
+        emit('update_meld_draft_add', {
             gameId,
             meldsToLay: updatedMelds,
             hand: updatedHand
+        }, (res) => {
+            if (res.error) {
+                console.error(res.error);
+                alert(res.error);
+            }
+        });
+    };
+
+    const removeMeld = (meld) => {
+        emit('update_meld_draft_remove', {
+            gameId,
+            meld
         }, (res) => {
             if (res.error) {
                 console.error(res.error);
@@ -36,13 +48,13 @@ export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, hand,
         <div>
             <button
                 className="add-meld-btn mt-2 bg-green-500 text-white px-4 py-2 rounded"
-                disabled={meldSelection.length < 3}
+                disabled={meldSelection.length < 1}
                 onClick={() => {
                     addMeld(meldSelection);
                     setMeldSelection([]);
                 }}
             >
-                Add Meld
+                Add Draft Meld
             </button>
 
             <div className="melds-section">
@@ -52,6 +64,14 @@ export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, hand,
                     meldsToLay.map((meld, idx) => (
                         <div key={idx} className="meld-preview flex gap-2 mb-2">
                             {meld.map(card => renderCard(card))}
+                            <button
+                                className="ml-2 text-red-500 underline"
+                                onClick={() => {
+                                    removeMeld(meld);
+                                }}
+                            >
+                                Remove
+                            </button>
                         </div>
                     ))
                 )}
