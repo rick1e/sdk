@@ -3,8 +3,8 @@ import React from "react";
 export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setGameId, setGame, emit, socketId }) => {
 
     const createGame = () => {
+        if (!playerName) return alert('Enter name');
         emit('create_game', { gameId, playerName }, ({ gameId }) => {
-            if (!playerName) return alert('Enter name');
             setGameId(gameId);
             emit('join_game', { gameId, playerName }, (res) => {
                 if (res.error) alert(res.error);
@@ -28,7 +28,7 @@ export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setG
         emit('rejoin_game', { gameId, playerName }, (res) => {
             if (res.error) return alert(res.error);
             setGame(res.game);
-            setPlayerId(socketId); // update local ID
+            setPlayerId(res.playerId); // update local ID
         });
     }
 

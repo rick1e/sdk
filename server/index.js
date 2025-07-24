@@ -54,7 +54,7 @@ io.on('connection', socket => {
         player.id = socket.id;
 
         socket.join(gameId);
-        cb({ success: true, game });
+        cb({ success: true, game, playerId: socket.id });
     });
 
 
