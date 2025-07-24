@@ -21,6 +21,14 @@ const Kalooki = () => {
     const [meldSelection, setMeldSelection] = useState([]);
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const initialGameId = params.get('gameId');
+        if (initialGameId) {
+            setGameId(initialGameId);
+        }
+    }, []);
+
+    useEffect(() => {
         socket.on('connect', () => {
             setPlayerId(socket.id); // Identify player
         });
@@ -34,6 +42,13 @@ const Kalooki = () => {
             socket.off('game_update');
         };
     }, []);
+
+    const generateGameLink = () => {
+        const url = `${window.location.origin}?gameId=${game.id}`;
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Game link copied to clipboard!');
+        });
+    };
 
     const myPlayer = () => game?.players?.find(p => p.id === playerId);
     const hand = myPlayer()?.hand || [];
@@ -61,6 +76,12 @@ const Kalooki = () => {
         <div className="p-4">
             <h2>Kalooki Game</h2>
             <h2>Game ID: {game.id}</h2>
+            <button
+                onClick={generateGameLink}
+                className="mt-2 p-2 bg-blue-500 text-white rounded"
+            >
+                Copy Game Link
+            </button>
             <h3>Phase: {game.phase}</h3>
             <p><strong>Your Turn:</strong> {isMyTurn() ? 'Yes' : 'No'}</p>
 

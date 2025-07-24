@@ -4,7 +4,15 @@ export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setG
 
     const createGame = () => {
         emit('create_game', { gameId, playerName }, ({ gameId }) => {
+            if (!playerName) return alert('Enter name');
             setGameId(gameId);
+            emit('join_game', { gameId, playerName }, (res) => {
+                if (res.error) alert(res.error);
+
+                const url = new URL(window.location);
+                url.searchParams.set('gameId', gameId);
+                window.history.pushState({}, '', url);
+            });
         });
     };
 
@@ -29,7 +37,7 @@ export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setG
             <h2>Kalooki Game v2</h2>
             <input placeholder="Name" value={playerName} onChange={e => setPlayerName(e.target.value)} />
             <br />
-            <input placeholder="Game ID" value={gameId} onChange={e => setGameId(e.target.value)} />
+            <input disabled={true} placeholder="Game ID" value={gameId} onChange={e => setGameId(e.target.value)} />
             <br />
             <button onClick={createGame}>Create Game</button>
             <button onClick={joinGame}>Join Game</button>
