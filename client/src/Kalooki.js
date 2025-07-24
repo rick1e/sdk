@@ -66,6 +66,7 @@ const Kalooki = () => {
             setPlayerName={setPlayerName}
             gameId={gameId}
             setGameId={setGameId}
+            setGame={setGame}
             setPlayerId={setPlayerId}
             emit={emit}
             socketId={socket.id}
