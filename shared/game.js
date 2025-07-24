@@ -53,7 +53,7 @@ function createGame(gameId, creatorId) {
 
 function joinGame(game, playerId, name) {
     if (game.phase !== 'waiting') return;
-    game.players.push({ id: playerId, hand: [], name });
+    game.players.push({ id: playerId, hand: [], meldsToLay: [], name });
 }
 
 function startGame(game) {
@@ -107,7 +107,7 @@ function discardCard(game, playerId, card) {
     game.discardPile.push(player.hand.splice(index, 1)[0]);
 
     // ✅ Check win condition
-    if (player.hand.length === 0) {
+    if (hasPlayerWon(player)) {
         game.winner = playerId;
         game.phase = 'finished';
         return { success: true, winner: playerId };
@@ -117,6 +117,10 @@ function discardCard(game, playerId, card) {
     game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
     game.phase = 'drawing';
     return { success: true };
+}
+
+function hasPlayerWon(player) {
+    return player.hand.length === 0 && player.meldsToLay.length === 0;
 }
 
 
@@ -190,7 +194,7 @@ function layDownMeld(game, playerId, cards) {
     game.melds.push({ playerId, cards });
 
     // ✅ Check win
-    if (player.hand.length === 0) {
+    if (hasPlayerWon(player)) {
         game.winner = playerId;
         game.phase = 'finished';
         return { success: true, winner: playerId };
@@ -199,23 +203,31 @@ function layDownMeld(game, playerId, cards) {
     return { success: true };
 }
 
-function layDownMeldNew(game, playerId, melds) {
+function isValidMeld(cards) {
+    return (isValidSet(cards) || isValidRun(cards));
+}
+
+function layDownMeldNew(game, playerId) {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return { error: 'Player not found' };
-    if (game.phase !== 'playing') return { error: 'Game not in playing phase' };
+
+    const melds = player.meldsToLay;
 
     // Validate melds
     const allValid = melds.every(isValidMeld); // assumes isValidMeld exists
     if (!allValid) return { error: 'One or more melds are invalid' };
 
     // Rule: Require 3 melds to lay down
+    /*
     if (!player.hasLaidDown && game.rules?.requireThreeMeldsToLay) {
         if (melds.length < 3) {
             return { error: 'You must have at least 3 melds to lay down in this game.' };
         }
     }
+     */
 
     // Check if all cards exist in player hand
+    /*
     const allMeldCards = melds.flat();
     const handCopy = [...player.hand];
 
@@ -227,6 +239,7 @@ function layDownMeldNew(game, playerId, melds) {
 
     // Commit: Remove cards and mark player
     player.hand = handCopy;
+    */
     player.hasLaidDown = true;
 
     // Add to table
@@ -236,6 +249,8 @@ function layDownMeldNew(game, playerId, melds) {
             cards: sortMeld(meld), // optional: sort for runs
         });
     });
+
+    player.meldsToLay = [];
 
     return { success: true, game };
 }
@@ -274,7 +289,7 @@ function addToMeld(game, playerId, meldIndex, cards) {
 
 
     // Check win
-    if (player.hand.length === 0) {
+    if (hasPlayerWon(player)) {
         game.winner = playerId;
         game.phase = 'finished';
         return { success: true, winner: playerId };

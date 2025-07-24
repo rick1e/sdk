@@ -27,7 +27,7 @@ io.on('connection', socket => {
         console.log('Player disconnected:', socket.id);
     });
 
-    socket.on('create_game', (cb) => {
+    socket.on('create_game', (data,cb) => {
         const gameId = Math.random().toString(36).substr(2, 6);
         games[gameId] = createGame(gameId, socket.id);
         socket.join(gameId);
@@ -89,20 +89,11 @@ io.on('connection', socket => {
         cb(result);
     });
 
-    socket.on('lay_down_meld', ({ gameId, cards }, cb) => {
+    socket.on('lay_down_meld_list', ({ gameId }, cb) => {
         const game = games[gameId];
         if (!game) return cb({ error: 'Game not found' });
 
-        const result = layDownMeld(game, socket.id, cards);
-        io.to(gameId).emit('game_update', game);
-        cb(result);
-    });
-
-    socket.on('lay_down_meld_list', ({ gameId, melds }, cb) => {
-        const game = games[gameId];
-        if (!game) return cb({ error: 'Game not found' });
-
-        const result = layDownMeldNew(game, socket.id, melds);
+        const result = layDownMeldNew(game, socket.id);
         io.to(gameId).emit('game_update', game);
         cb(result);
     });
@@ -120,6 +111,23 @@ io.on('connection', socket => {
         // Optionally emit game update to all players
         io.to(gameId).emit('game_update', game);
     });
+
+    socket.on('update_meld_draft', ({ gameId, meldsToLay, hand }, callback) => {
+        const game = games[gameId];
+        if (!game) return callback({ error: 'Game not found' });
+
+        const player = game.players.find(p => p.id === socket.id);
+        if (!player) return callback({ error: 'Player not found' });
+
+        player.hand = hand; // or validate before setting
+        player.meldsToLay = meldsToLay;
+
+        callback({ success: true });
+
+        // Optionally emit game update to all players
+        io.to(gameId).emit('game_update', game);
+    });
+
 
 
     socket.on('add_to_meld', ({ gameId, meldIndex, cards }, cb) => {
