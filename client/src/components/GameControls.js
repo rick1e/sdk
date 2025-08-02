@@ -9,6 +9,12 @@ export const GameControls = ({ gameId, gamePhase, discardValue, isMyTurn, emit }
         });
     };
 
+    const addBot = () => {
+        emit('add_bot', { gameId }, (res) => {
+            if (res.error) alert(res.error);
+        });
+    };
+
     const drawCard = (fromDiscard = false) => {
         emit('draw_card', { gameId, fromDiscard }, (res) => {
             if (res.error) alert(res.error);
@@ -18,7 +24,10 @@ export const GameControls = ({ gameId, gamePhase, discardValue, isMyTurn, emit }
     return (
         <div>
             {gamePhase === 'waiting' && (
-                <button onClick={startGame}>Start Game</button>
+                <>
+                    <button onClick={addBot}>Add Bot</button>
+                    <button onClick={startGame}>Start Game</button>
+                </>
             )}
 
             {isMyTurn && gamePhase === 'drawing' && (

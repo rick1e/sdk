@@ -34,7 +34,7 @@ export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setG
 
     return (
         <div className="p-4">
-            <h2>Kalooki Game v2</h2>
+            <h2>Kalooki Game v0.3</h2>
             <input placeholder="Name" value={playerName} onChange={e => setPlayerName(e.target.value)} />
             <br />
             <input disabled={true} placeholder="Game ID" value={gameId} onChange={e => setGameId(e.target.value)} />

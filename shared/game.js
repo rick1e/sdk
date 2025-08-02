@@ -252,16 +252,25 @@ function layDownMeldNew(game, playerId) {
 
     player.meldsToLay = [];
 
+    if (hasPlayerWon(player)) {
+        game.winner = playerId;
+        game.phase = 'finished';
+        return { success: true, winner: playerId };
+    }
+
     return { success: true, game };
 }
 
 
 function addToMeld(game, playerId, meldIndex, cards) {
+    console.log('playerId:', playerId);
     const player = game.players.find(p => p.id === playerId);
     if (!player) return { error: 'Player not found' };
     if (!game.melds || !game.melds[meldIndex]) return { error: 'Invalid meld' };
 
     const meld = game.melds[meldIndex];
+    console.log('meld:', meld);
+    console.log('cards:', cards);
 
     // Make a copy of meld cards and add new cards
     const newMeldCards = [...meld.cards, ...cards];
@@ -367,7 +376,7 @@ function cardSort(a, b) {
 
 
 
-module.exports = {
+    module.exports = {
     createGame,
     joinGame,
     startGame,

@@ -2,7 +2,7 @@
 import React, {useState} from "react";
 import {renderCard} from "../utils/utilsRender";
 
-export const HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard, meldSelection, setMeldSelection, emit, gameId, playerId }) => {
+export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard, meldSelection, setMeldSelection, emit, gameId, playerId }) => {
 
     const [draggingIndex, setDraggingIndex] = useState(null);
     // const [dragOverIndex, setDragOverIndex] = useState(null);

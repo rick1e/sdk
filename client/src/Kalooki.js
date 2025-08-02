@@ -75,7 +75,7 @@ const Kalooki = () => {
 
     return (
         <div className="p-4">
-            <h2>Kalooki Game</h2>
+            <h2>Kalooki Game v0.3</h2>
             <h2>Game ID: {game.id}</h2>
             <button
                 onClick={generateGameLink}

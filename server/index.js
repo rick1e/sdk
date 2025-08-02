@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const KalookiBot = require('./bot/kalookiBot');
 const {
     createGame,
     joinGame,
@@ -20,6 +21,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 4000;
 
 let games = {};  // in-memory game store
+const bots = {};
 
 io.on('connection', socket => {
     console.log('Player connected:', socket.id);
@@ -33,6 +35,17 @@ io.on('connection', socket => {
         games[gameId] = createGame(gameId, socket.id);
         socket.join(gameId);
         cb({ gameId });
+    });
+
+    socket.on('add_bot', ({ gameId, playerName },cb) => {
+        if (!games[gameId]) return cb({ error: 'Game not found' });
+
+        const bot = new KalookiBot(io, gameId);
+        bot.joinGame(games[gameId]);
+        io.to(gameId).emit('game_update', games[gameId]);
+        cb({ success: true });
+        if (!bots[gameId]) bots[gameId] = [];
+        bots[gameId].push(bot);
     });
 
     socket.on('join_game', ({ gameId, playerName }, cb) => {
@@ -84,10 +97,20 @@ io.on('connection', socket => {
     });
 
     socket.on('discard_card', ({ gameId, card }, cb) => {
+
+        console.log("discarding card");
         const game = games[gameId];
         const result = discardCard(game, socket.id, card);
         io.to(gameId).emit('game_update', game);
         cb(result);
+        console.log("discarded card");
+
+        // 🔁 If game is still ongoing, proceed to next turn
+        if (game.phase !== 'finished') {
+            console.log("proceeding to next turn");
+            proceedToNextTurn(io,game,bots[gameId]);
+        }
+
     });
 
     socket.on('lay_down_meld_list', ({ gameId }, cb) => {
@@ -162,6 +185,31 @@ io.on('connection', socket => {
 
 
 });
+
+function proceedToNextTurn(io,game,bots){
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    console.log("current Player:", currentPlayer);
+
+    if (currentPlayer.isBot) {
+        const bot = bots.find(b => b.player.id === currentPlayer.id);
+
+        if (bot) {
+            console.log("Thinking ....");
+            setTimeout(() => {
+                bot.takeTurn(game);
+                // 4. If game not finished, proceed to next turn
+                if (game.phase !== 'finished') {
+                    proceedToNextTurn(io,game,bots);
+                }
+            }, 1000); // Delay to mimic thinking
+        }
+    } else {
+        const socket = io.sockets.sockets.get(currentPlayer.id);
+        if (socket) {
+            socket.emit('game_update', game);
+        }
+    }
+}
 
 server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 

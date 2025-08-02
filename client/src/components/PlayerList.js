@@ -7,7 +7,7 @@ export const PlayerList = ({ players, currentPlayerIndex }) => (
         <ul>
             {players.map((p, i) => (
                 <li key={p.id}>
-                    {p.name} {i === currentPlayerIndex ? '👈 (turn)' : ''}
+                    {p.name} [{p.hand.length}] {i === currentPlayerIndex ? '👈 (turn)' : ''}
                 </li>
             ))}
         </ul>
