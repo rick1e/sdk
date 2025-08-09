@@ -5,71 +5,56 @@ const {
     addToMeld,
 } = require('../../shared/game');
 
-function botPlayTurn(player, gameState) {
-    console.log("bot playing turn");
-    const hand = player.hand;
+function botPlayDraw(player, gameState) {
+    console.log("bot playing draw turn");
+    drawBotCard(gameState, player.id);
+}
+
+function botPlayMelds(player, gameState) {
+    console.log("bot playing melds turn");
     const botIndex = gameState.currentPlayerIndex;
-    console.log("bot hand", hand);
 
-    const meldsToLay = extractMeldsFromHand(hand)
-    console.log("bot melds", meldsToLay);
-    if (meldsToLay.length > 0 ){
+    layDownInitialMelds(player, gameState);
+    extendExistingMelds(gameState.players[botIndex], gameState);
+}
+
+function botPlayDiscard(player, gameState) {
+    console.log("bot playing discard turn");
+    const botIndex = gameState.currentPlayerIndex;
+
+    const discard = chooseWorstCard(gameState.players[botIndex].hand);
+    discardCard(gameState, player.id, discard);
+}
+
+function layDownInitialMelds(player, gameState) {
+    const meldsToLay = extractMeldsFromHand(player.hand);
+    if (meldsToLay.length > 0) {
         player.meldsToLay = meldsToLay;
-
-        // Flatten melds into a list of cards to remove
         const cardsToRemove = meldsToLay.flat();
-
-        // Remove each card from hand by matching suit + rank
-        player.hand = hand.filter(card =>
+        player.hand = player.hand.filter(card =>
             !cardsToRemove.some(m => m.suit === card.suit && m.rank === card.rank)
         );
-
-        console.log("bot hand after melds", player.hand);
-
         layDownMeldNew(gameState, player.id);
     }
+}
 
-    console.log("table melds:", JSON.stringify(gameState.melds, null, 2));
-    console.log("hand:", gameState.players[botIndex].hand);
-
-    const extensions = findMeldExtensions(gameState.players[botIndex].hand, gameState.melds);
-
-    console.log("extensions:", JSON.stringify(extensions));
-
-    if (extensions.length > 0 ) {
-        for (const extension of extensions) {
-
-            console.log("meldIndex:", extension.meldIndex);
-            console.log("cards:", extension.cards);
-            addToMeld(gameState, player.id, extension.meldIndex, extension.cards);
-        }
+function extendExistingMelds(player, gameState) {
+    const extensions = findMeldExtensions(player.hand, gameState.melds);
+    for (const extension of extensions) {
+        addToMeld(gameState, player.id, extension.meldIndex, extension.cards);
     }
+}
 
-    // Draw from deck if no good discard
-    const topDiscard = gameState.discardPile[gameState.discardPile.length - 1];
-    const wants = Math.random() > 0.5; // Randomized desire for discard
+function drawBotCard(gameState, playerId) {
+    const wantsDiscard = Math.random() > 0.5;
 
-    if (wants) {
+    if (wantsDiscard) {
         console.log("bot drawing from discard pile");
-        drawCard(gameState, player.id, true);
-        console.log("bot hand:",gameState.players[botIndex].hand);
+        drawCard(gameState, playerId, true);
     } else {
         console.log("bot drawing from deck");
-        drawCard(gameState, player.id, false);
-        console.log("bot hand:",gameState.players[botIndex].hand);
+        drawCard(gameState, playerId, false);
     }
-
-
-
-
-
-    // Choose discard: highest rank not in set/sequence
-    const discard = chooseWorstCard(gameState.players[botIndex].hand);
-    console.log("bot discarding :", discard);
-
-    discardCard(gameState, player.id, discard);
-    console.log("bot hand:",gameState.players[botIndex].hand);
-
 }
 
 function chooseWorstCard(hand) {
@@ -79,16 +64,10 @@ function chooseWorstCard(hand) {
     }, null);
 }
 
-function shouldLayDown(hand) {
-    return hand.length < 8; // Naive condition
-}
-
-
 function extractMeldsFromHand(hand) {
     const meldsToLay = [];
     const usedIndices = new Set();
 
-    // --- FIND SETS (3+ same rank, diff suits) ---
     const rankGroups = {};
     hand.forEach((card, idx) => {
         if (!rankGroups[card.rank]) rankGroups[card.rank] = [];
@@ -104,7 +83,6 @@ function extractMeldsFromHand(hand) {
         }
     }
 
-    // --- FIND RUNS (3+ consecutive same suit) ---
     const suitGroups = {};
     hand.forEach((card, idx) => {
         if (!suitGroups[card.suit]) suitGroups[card.suit] = [];
@@ -118,13 +96,10 @@ function extractMeldsFromHand(hand) {
 
         let run = [];
         for (let i = 0; i < cards.length; i++) {
-            if (
-                run.length === 0 ||
-                cards[i].rank === run[run.length - 1].rank + 1
-            ) {
+            if (run.length === 0 || cards[i].rank === run[run.length - 1].rank + 1) {
                 run.push(cards[i]);
             } else if (cards[i].rank === run[run.length - 1].rank) {
-                continue; // skip duplicate ranks in same suit
+                // continue;
             } else {
                 if (run.length >= 3) {
                     const meld = run.map(c => ({ suit: c.suit, rank: c.rank }));
@@ -158,10 +133,7 @@ function getSetAdditions(botHand, meld, usedCardIndexes) {
     const rank = meld[0].rank;
 
     botHand.forEach((card, index) => {
-        if (
-            !usedCardIndexes.has(index) &&
-            card.rank === rank
-        ) {
+        if (!usedCardIndexes.has(index) && card.rank === rank) {
             additions.push(card);
             usedCardIndexes.add(index);
         }
@@ -175,19 +147,13 @@ function getRunAdditions(botHand, meld, usedIndexes) {
     const runRanks = meld.map(c => c.rank).sort((a, b) => a - b);
     const cardsToAdd = [];
 
-    // Create a set for fast lookup
-    const runSet = new Set(runRanks);
-
     let extended = true;
     while (extended) {
         extended = false;
 
-        // Look for cards that can extend the beginning
         const low = Math.min(...runRanks);
         const prepend = botHand.find((card, index) =>
-            !usedIndexes.has(index) &&
-            card.suit === suit &&
-            card.rank === low - 1
+            !usedIndexes.has(index) && card.suit === suit && card.rank === low - 1
         );
 
         if (prepend) {
@@ -197,14 +163,9 @@ function getRunAdditions(botHand, meld, usedIndexes) {
             extended = true;
         }
 
-        // Look for cards that can extend the end
         const high = Math.max(...runRanks);
-        const append = botHand.find((card, index) =>{
-
-            return !usedIndexes.has(index) &&
-            card.suit === suit &&
-            card.rank === high + 1
-        }
+        const append = botHand.find((card, index) =>
+            !usedIndexes.has(index) && card.suit === suit && card.rank === high + 1
         );
 
         if (append) {
@@ -217,7 +178,6 @@ function getRunAdditions(botHand, meld, usedIndexes) {
 
     return cardsToAdd;
 }
-
 
 function findMeldExtensions(botHand, tableMelds) {
     const extensions = [];
@@ -234,6 +194,7 @@ function findMeldExtensions(botHand, tableMelds) {
         } else if (isRun(meld)) {
             cardsToAdd = getRunAdditions(botHand, meld, usedCardIndexes);
         }
+
         if (cardsToAdd.length > 0) {
             extensions.push({ meldIndex: i, cards: cardsToAdd });
         }
@@ -242,12 +203,10 @@ function findMeldExtensions(botHand, tableMelds) {
     return extensions;
 }
 
-
-
-
 module.exports = {
-    botPlayTurn,
-    shouldLayDown,
+    botPlayDraw,
+    botPlayDiscard,
+    botPlayMelds,
     extractMeldsFromHand,
     isRun,
     isSet,

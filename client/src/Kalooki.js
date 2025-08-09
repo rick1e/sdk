@@ -8,6 +8,8 @@ import {HandDisplay} from './components/HandDisplay';
 import {MeldBuilder} from './components/MeldBuilder';
 import {DiscardSection} from './components/DiscardSection';
 import {GameFinished} from "./components/GameFinished";
+import {CallSection} from "./components/CallSection";
+import CallConfirmModal from "./components/CallConfirmModal";
 
 const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 const socket = io(backendUrl);
@@ -19,6 +21,7 @@ const Kalooki = () => {
     const [gameId, setGameId] = useState('');
     const [selectedCard, setSelectedCard] = useState(null);
     const [meldSelection, setMeldSelection] = useState([]);
+    const [callRequest, setCallRequest] = useState(null);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -37,11 +40,44 @@ const Kalooki = () => {
             setGame(updatedGame);
         });
 
+        /*socket.on('call_requested', ({ callerId, gameId }) => {
+            console.log(`${callerId} wants to call. Allow?`);
+            //if (isMyTurn) {
+            const allow = window.confirm(`${callerId} wants to call. Allow?`);
+            socket.emit('respond_to_call', { gameId, allow });
+            //}
+        });*/
+
+        socket.on('call_requested', ({ callerId, gameId }) => {
+            setCallRequest({ callerId, gameId });
+        });
+
+        socket.on('call_approved', () => {
+            alert('Your call was approved. You received the card and a penalty card.');
+        });
+
+        socket.on('call_denied', () => {
+            alert('Your call was denied.');
+        });
+
         return () => {
             socket.off('connect');
             socket.off('game_update');
+            socket.off('call_requested');
+            socket.off('call_approved');
+            socket.off('call_denied');
         };
     }, []);
+
+    const handleAllow = () => {
+        socket.emit('respond_to_call', { gameId: callRequest.gameId, allow: true });
+        setCallRequest(null);
+    };
+
+    const handleDeny = () => {
+        socket.emit('respond_to_call', { gameId: callRequest.gameId, allow: false });
+        setCallRequest(null);
+    };
 
     const generateGameLink = () => {
         const url = `${window.location.origin}?gameId=${game.id}`;
@@ -56,6 +92,13 @@ const Kalooki = () => {
 
     const isMyTurn = () => {
         return game?.players?.[game.currentPlayerIndex]?.id === playerId;
+    };
+
+    const isCanCall = () => {
+        const previousPlayerIndex = (game.currentPlayerIndex - 1 + game.players.length) % game.players.length;
+        const currentPlayerId = game?.players?.[game.currentPlayerIndex]?.id;
+        const previousPlayerId = game?.players?.[previousPlayerIndex]?.id;
+        return currentPlayerId !== playerId && previousPlayerId !== playerId;
     };
 
     const emit = (event, data, callback) => socket.emit(event, data, callback);
@@ -86,7 +129,26 @@ const Kalooki = () => {
             <h3>Phase: {game.phase}</h3>
             <p><strong>Your Turn:</strong> {isMyTurn() ? 'Yes' : 'No'}</p>
 
+            <GameFinished
+                emit={emit}
+                gameId={game.id}
+                gamePhase={game.phase}
+                players={game.players}
+                winner={game.winner}
+                setSelectedCard={setSelectedCard}
+                setMeldSelection={setMeldSelection}
+            />
+
             <PlayerList players={game.players} currentPlayerIndex={game.currentPlayerIndex} />
+
+
+            {callRequest && (
+                <CallConfirmModal
+                    callerId={callRequest.callerId}
+                    onConfirm={handleAllow}
+                    onCancel={handleDeny}
+                />
+            )}
 
             <GameControls
                 gameId={game.id}
@@ -94,6 +156,13 @@ const Kalooki = () => {
                 isMyTurn={isMyTurn()}
                 emit={emit}
                 discardValue={game.discardPile.slice(-1)[0]?.rank || 'empty'}
+            />
+
+            <CallSection
+                emit={emit}
+                gameId={game.id}
+                gamePhase={game.phase}
+                canCall={isCanCall()}
             />
 
             <DiscardSection
@@ -126,16 +195,6 @@ const Kalooki = () => {
                 emit={emit}
                 gameId={game.id}
                 game={game}
-            />
-
-            <GameFinished
-                emit={emit}
-                gameId={game.id}
-                gamePhase={game.phase}
-                players={game.players}
-                winner={game.winner}
-                setSelectedCard={setSelectedCard}
-                setMeldSelection={setMeldSelection}
             />
         </div>
     );

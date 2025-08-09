@@ -1,19 +1,10 @@
+// server.js
 const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const KalookiBot = require('./bot/kalookiBot');
-const {
-    createGame,
-    joinGame,
-    startGame,
-    drawCard,
-    discardCard,
-    addToMeld,
-    resetGame,
-    layDownMeldNew,
-    isSameMeld
-} = require('../shared/game');
+const gameLogic = require('../shared/game');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,193 +13,261 @@ const PORT = process.env.PORT || 4000;
 
 let games = {};  // in-memory game store
 const bots = {};
+const timeouts = {};
+
+const CALL_TIMER_DURATION_MS = 10000;
+const BOT_TURN_TIMER_DURATION_MS = 1000;
+
 
 io.on('connection', socket => {
     console.log('Player connected:', socket.id);
 
-    socket.on('disconnect', () => {
-        console.log('Player disconnected:', socket.id);
-    });
+    socket.on('disconnect', () => console.log('Player disconnected:', socket.id));
 
-    socket.on('create_game', (data,cb) => {
-        const gameId = Math.random().toString(36).substr(2, 6);
-        games[gameId] = createGame(gameId, socket.id);
-        socket.join(gameId);
-        cb({ gameId });
-    });
+    // --- Game Lifecycle ---
+    socket.on('create_game', (data, cb) => handleCreateGame(socket, cb));
+    socket.on('join_game', (data, cb) => handleJoinGame(socket, data, cb));
+    socket.on('rejoin_game', (data, cb) => handleRejoinGame(socket, data, cb));
+    socket.on('add_bot', (data, cb) => handleAddBot(socket, data, cb));
+    socket.on('start_game', ({ gameId }, cb) => handleStartGame(gameId, cb));
+    socket.on('reset_game', ({ gameId }, cb) => handleResetGame(gameId, cb));
 
-    socket.on('add_bot', ({ gameId, playerName },cb) => {
-        if (!games[gameId]) return cb({ error: 'Game not found' });
+    // --- Gameplay ---
+    socket.on('draw_card', (data, cb) => handleDrawCard(socket, data, cb));
+    socket.on('discard_card', (data, cb) => handleDiscardCard(socket, data, cb));
+    socket.on('lay_down_meld_list', (data, cb) => handleLayDownMeld(socket, data, cb));
+    socket.on('add_to_meld', (data, cb) => handleAddToMeld(socket, data, cb));
+    socket.on('update_hand_order', handleUpdateHandOrder);
+    socket.on('update_meld_draft_add', handleUpdateMeldDraftAdd);
+    socket.on('update_meld_draft_remove', handleUpdateMeldDraftRemove);
 
-        const bot = new KalookiBot(io, gameId);
-        bot.joinGame(games[gameId]);
-        io.to(gameId).emit('game_update', games[gameId]);
-        cb({ success: true });
-        if (!bots[gameId]) bots[gameId] = [];
-        bots[gameId].push(bot);
-    });
-
-    socket.on('join_game', ({ gameId, playerName }, cb) => {
-        if (!games[gameId]) return cb({ error: 'Game not found' });
-        joinGame(games[gameId], socket.id, playerName);
-        socket.join(gameId);
-        io.to(gameId).emit('game_update', games[gameId]);
-        cb({ success: true });
-    });
-
-    socket.on('rejoin_game', ({ gameId, playerName }, cb) => {
-        const game = games[gameId];
-        if (!game) return cb({ error: 'Game not found' });
-
-        const player = game.players.find(p => p.name === playerName);
-        if (!player) return cb({ error: 'Player not found in game' });
-
-        // Update socket ID for the rejoining player
-        player.id = socket.id;
-
-        socket.join(gameId);
-        cb({ success: true, game, playerId: socket.id });
-    });
-
-
-    socket.on('start_game', ({ gameId }, cb) => {
-        const game = games[gameId];
-        if (!game) return cb({ error: 'Game not found' });
-        startGame(game);
-        io.to(gameId).emit('game_update', game);
-        cb({ success: true });
-    });
-
-    socket.on('reset_game', ({ gameId }, cb) => {
-        const game = games[gameId];
-        if (!game) return cb({ error: 'Game not found' });
-
-        resetGame(game);
-        io.to(gameId).emit('game_update', game);
-        cb({ success: true });
-    });
-
-
-    socket.on('draw_card', ({ gameId, fromDiscard }, cb) => {
-        const game = games[gameId];
-        const result = drawCard(game, socket.id, fromDiscard);
-        io.to(gameId).emit('game_update', game);
-        cb(result);
-    });
-
-    socket.on('discard_card', ({ gameId, card }, cb) => {
-
-        console.log("discarding card");
-        const game = games[gameId];
-        const result = discardCard(game, socket.id, card);
-        io.to(gameId).emit('game_update', game);
-        cb(result);
-        console.log("discarded card");
-
-        // 🔁 If game is still ongoing, proceed to next turn
-        if (game.phase !== 'finished') {
-            console.log("proceeding to next turn");
-            proceedToNextTurn(io,game,bots[gameId]);
-        }
-
-    });
-
-    socket.on('lay_down_meld_list', ({ gameId }, cb) => {
-        const game = games[gameId];
-        if (!game) return cb({ error: 'Game not found' });
-
-        const result = layDownMeldNew(game, socket.id);
-        io.to(gameId).emit('game_update', game);
-        cb(result);
-    });
-
-    socket.on('update_hand_order', ({ gameId, newHand }, callback) => {
-        const game = games[gameId];
-        if (!game) return callback({ error: 'Game not found' });
-
-        const player = game.players.find(p => p.id === socket.id);
-        if (!player) return callback({ error: 'Player not found' });
-
-        player.hand = newHand; // Store new order
-        callback({ success: true });
-
-        // Optionally emit game update to all players
-        io.to(gameId).emit('game_update', game);
-    });
-
-    socket.on('update_meld_draft_add', ({ gameId, meldsToLay, hand }, callback) => {
-        const game = games[gameId];
-        if (!game) return callback({ error: 'Game not found' });
-
-        const player = game.players.find(p => p.id === socket.id);
-        if (!player) return callback({ error: 'Player not found' });
-
-        player.hand = hand; // or validate before setting
-        player.meldsToLay = meldsToLay;
-
-        callback({ success: true });
-
-        // Optionally emit game update to all players
-        io.to(gameId).emit('game_update', game);
-    });
-
-    socket.on('update_meld_draft_remove', ({ gameId, meld }, callback) => {
-        const game = games[gameId];
-        if (!game) return callback({ error: 'Game not found' });
-
-        const player = game.players.find(p => p.id === socket.id);
-        if (!player) return callback({ error: 'Player not found' });
-
-        // Find and remove the exact meld
-        player.meldsToLay = player.meldsToLay.filter(existingMeld =>
-            !isSameMeld(existingMeld, meld)
-        );
-        // Optionally restore those cards to the player's hand
-        player.hand.push(...meld);
-
-        callback({ success: true });
-
-        // Optionally emit game update to all players
-        io.to(gameId).emit('game_update', game);
-    });
-
-
-
-    socket.on('add_to_meld', ({ gameId, meldIndex, cards }, cb) => {
-        const game = games[gameId];
-        if (!game) return cb({ error: 'Game not found' });
-
-        const result = addToMeld(game, socket.id, meldIndex, cards);
-        io.to(gameId).emit('game_update', game);
-        cb(result);
-    });
-
-
+    // --- Call Logic ---
+    socket.on('call_card', ({ gameId }) => handleCallCard(socket, gameId));
+    socket.on('respond_to_call', ({ gameId, allow }) => handleCallResponse(io, gameId, allow));
 });
 
-function proceedToNextTurn(io,game,bots){
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    console.log("current Player:", currentPlayer);
+// ================= HANDLERS =================
+function handleCreateGame(socket, cb) {
+    const gameId = Math.random().toString(36).substr(2, 6);
+    games[gameId] = gameLogic.createGame(gameId, socket.id);
+    socket.join(gameId);
+    cb({ gameId });
+}
 
-    if (currentPlayer.isBot) {
-        const bot = bots.find(b => b.player.id === currentPlayer.id);
+function handleJoinGame(socket, { gameId, playerName }, cb) {
+    const game = games[gameId];
+    if (!game) return cb({ error: 'Game not found' });
+    gameLogic.joinGame(game, socket.id, playerName);
+    socket.join(gameId);
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
 
-        if (bot) {
-            console.log("Thinking ....");
-            setTimeout(() => {
-                bot.takeTurn(game);
-                // 4. If game not finished, proceed to next turn
-                if (game.phase !== 'finished') {
-                    proceedToNextTurn(io,game,bots);
-                }
-            }, 1000); // Delay to mimic thinking
-        }
+function handleRejoinGame(socket, { gameId, playerName }, cb) {
+    const game = games[gameId];
+    if (!game) return cb({ error: 'Game not found' });
+    const player = game.players.find(p => p.name === playerName);
+    if (!player) return cb({ error: 'Player not found in game' });
+    player.id = socket.id;
+    socket.join(gameId);
+    cb({ success: true, game, playerId: socket.id });
+}
+
+function handleAddBot(socket, { gameId }, cb) {
+    const game = games[gameId];
+    if (!game) return cb({ error: 'Game not found' });
+    const bot = new KalookiBot(io, gameId);
+    bot.joinGame(game);
+    io.to(gameId).emit('game_update', game);
+    if (!bots[gameId]) bots[gameId] = [];
+    bots[gameId].push(bot);
+    cb({ success: true });
+}
+
+function handleStartGame(gameId, cb) {
+    const game = games[gameId];
+    if (!game) return cb({ error: 'Game not found' });
+    gameLogic.startGame(game);
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleResetGame(gameId, cb) {
+    const game = games[gameId];
+    if (!game) return cb({ error: 'Game not found' });
+    gameLogic.resetGame(game);
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleDrawCard(socket, { gameId, fromDiscard }, cb) {
+    const game = games[gameId];
+    const result = gameLogic.drawCard(game, socket.id, fromDiscard);
+    io.to(gameId).emit('game_update', game);
+    cb(result);
+}
+
+function handleDiscardCard(socket, { gameId, card }, cb) {
+    const game = games[gameId];
+    const result = gameLogic.discardCard(game, socket.id, card);
+    if (timeouts[gameId]) clearTimeout(timeouts[gameId]);
+
+
+    game.callAvailable = true;
+    game.callRequest = { playerId: null, approved: null };
+
+    startCallTimer(io, game, bots[gameId], gameId);
+
+    io.to(gameId).emit('game_update', game);
+    cb(result);
+}
+
+function handleLayDownMeld(socket, { gameId }, cb) {
+    const game = games[gameId];
+    const result = gameLogic.layDownMeldNew(game, socket.id);
+    io.to(gameId).emit('game_update', game);
+    cb(result);
+}
+
+function handleAddToMeld(socket, { gameId, meldIndex, cards }, cb) {
+    const game = games[gameId];
+    const result = gameLogic.addToMeld(game, socket.id, meldIndex, cards);
+    io.to(gameId).emit('game_update', game);
+    cb(result);
+}
+
+function handleUpdateHandOrder({ gameId, newHand }, cb) {
+    const game = games[gameId];
+    const player = game.players.find(p => p.id === this.id);
+    if (!player) return cb({ error: 'Player not found' });
+    player.hand = newHand;
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleUpdateMeldDraftAdd({ gameId, meldsToLay, hand }, cb) {
+    const game = games[gameId];
+    const player = game.players.find(p => p.id === this.id);
+    if (!player) return cb({ error: 'Player not found' });
+    player.hand = hand;
+    player.meldsToLay = meldsToLay;
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleUpdateMeldDraftRemove({ gameId, meld }, cb) {
+    const game = games[gameId];
+    const player = game.players.find(p => p.id === this.id);
+    if (!player) return cb({ error: 'Player not found' });
+    player.meldsToLay = player.meldsToLay.filter(existingMeld =>
+        !gameLogic.isSameMeld(existingMeld, meld)
+    );
+    player.hand.push(...meld);
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleCallCard(socket, gameId) {
+    const game = games[gameId];
+    const current = game.players[game.currentPlayerIndex];
+    if (current.id === socket.id || !game.callAvailable || game.callRequest.playerId) return;
+    game.callRequest = { playerId: socket.id, approved: null };
+    game.callAvailable = false;
+    clearTimeout(timeouts[gameId]);
+
+    if (current.isBot) {
+        handleCallResponse(io, gameId, true);
     } else {
-        const socket = io.sockets.sockets.get(currentPlayer.id);
-        if (socket) {
-            socket.emit('game_update', game);
-        }
+        io.to(current.id).emit('call_requested', { callerId: socket.id, gameId });
     }
+}
+
+function handleCallResponse(io, gameId, allow) {
+    const game = games[gameId];
+    const { playerId: callerId } = game.callRequest;
+    if (!callerId) return;
+
+    game.callRequest.approved = allow;
+    if (allow) {
+        gameLogic.giveCards(game, callerId);
+        io.to(callerId).emit('call_approved');
+    } else {
+        io.to(callerId).emit('call_denied');
+    }
+
+    game.phase = 'drawing';
+    game.callRequest = { playerId: null, approved: null };
+    proceedToNextTurn(io, game, bots[gameId], gameId);
+}
+
+function proceedToNextTurn(io, game, botList, gameId) {
+    if (timeouts[gameId]) clearTimeout(timeouts[gameId]);
+
+    // If game is over, stop
+    if (game.phase === 'finished') return;
+
+    // If we're waiting on a call, don't proceed yet
+    if (game.phase === 'waiting on call') {
+        io.to(gameId).emit('waiting_on_call', { gameId, game });
+        return;
+    }
+
+    const player = game.players[game.currentPlayerIndex];
+
+    if (player.isBot) {
+        console.log('bot player',player.name);
+        const bot = botList.find(b => b.player.id === player.id);
+        if (!bot) return;
+
+        timeouts[gameId] = setTimeout(() => {
+            delete timeouts[gameId];
+
+            console.log('Proceed to next Turn Timeout');
+            console.log('game Phase',game.phase);
+
+            switch (game.phase) {
+                case 'drawing':
+                case 'draw':
+                    bot.drawCard(game);
+                    game.phase = 'meld';
+                    break;
+
+                case 'meld':
+                    bot.makeMelds(game);
+                    game.phase = 'discarding';
+                    break;
+
+                case 'discarding':
+                    bot.discardCard(game);
+                    game.phase = 'waiting on call';
+                    startCallTimer(io, game, botList, gameId);
+                    return; // Don't go to next turn yet
+
+                default:
+                    break;
+            }
+
+            proceedToNextTurn(io, game, botList, gameId);
+        }, BOT_TURN_TIMER_DURATION_MS);
+
+    } else {
+        io.to(gameId).emit('game_update', game);
+    }
+}
+
+
+function startCallTimer(io, game, botList, gameId) {
+    // Give players 3 seconds to call
+    console.log('Start Call Timer timeout');
+    timeouts[gameId] = setTimeout(() => {
+        delete timeouts[gameId];
+        console.log('Fire Call Timer timeout');
+        game.phase = 'drawing';
+        // game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
+        proceedToNextTurn(io, game, botList, gameId);
+    }, CALL_TIMER_DURATION_MS);
+
+    io.to(gameId).emit('call_window_open', { gameId, game });
 }
 
 server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));

@@ -40,6 +40,7 @@ function createGame(gameId, creatorId) {
     const players = [];
     return {
         id: gameId,
+        creatorId: creatorId,
         players,
         deck,
         discardPile: [],
@@ -48,6 +49,12 @@ function createGame(gameId, creatorId) {
         started: false,
         melds: [],
         winner: null,
+        callAvailable: false,
+        callTimeout: null,
+        callRequest: {
+            playerId: null,      // ID of player who called
+            approved: null,      // true = allowed, false = denied, null = pending
+        },
     };
 }
 
@@ -97,13 +104,37 @@ function drawCard(game, playerId, fromDiscard = false) {
     return { success: true, card };
 }
 
+function giveCards(game, playerId) {
+    const player = game.players.find(p => p.id === playerId);
+    if (game.phase !== 'waiting on call') return { error: 'Not your turn or wrong phase' };
+
+    const discardedCard =  game.discardPile.pop();
+    if (!discardedCard) return { error: 'No cards to draw' };
+
+    const deckCard = game.deck.pop();
+    if (!deckCard) return { error: 'No cards to draw' };
+
+    player.hand.push(discardedCard);
+    player.hand.push(deckCard);
+    // game.phase = 'discarding';
+    return { success: true };
+}
+
 function discardCard(game, playerId, card) {
+    console.log("discarding card -1");
     const player = game.players[game.currentPlayerIndex];
+
+    console.log("player.id",player.id);
+    console.log("playa ID",playerId);
+    console.log("game Phase",game.phase);
+
     if (player.id !== playerId || game.phase !== 'discarding') return { error: 'Invalid discard' };
 
+    console.log("discarding card -2");
     const index = player.hand.findIndex(c => isSameCard(c, card));
     if (index === -1) return { error: 'Card not in hand' };
 
+    console.log("discarding card -3");
     game.discardPile.push(player.hand.splice(index, 1)[0]);
 
     // ✅ Check win condition
@@ -112,10 +143,11 @@ function discardCard(game, playerId, card) {
         game.phase = 'finished';
         return { success: true, winner: playerId };
     }
+    console.log("discarding card -4");
 
     // Continue game
     game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
-    game.phase = 'drawing';
+    game.phase = 'waiting on call';
     return { success: true };
 }
 
@@ -171,38 +203,6 @@ function checkRunWithAce(nonJokers, jokerCount, aceHigh) {
     return jokerCount >= gaps;
 }
 
-function layDownMeld(game, playerId, cards) {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return { error: 'Player not found' };
-
-    // Ensure cards are in hand
-    for (let card of cards) {
-        const index = player.hand.findIndex(c => isSameCard(c, card));
-        if (index === -1) return { error: 'Card not in hand' };
-    }
-
-    if (!(isValidSet(cards) || isValidRun(cards))) {
-        return { error: 'Invalid meld' };
-    }
-
-    for (let card of cards) {
-        const index = player.hand.findIndex(c => isSameCard(c, card));
-        player.hand.splice(index, 1);
-    }
-
-    if (!game.melds) game.melds = [];
-    game.melds.push({ playerId, cards });
-
-    // ✅ Check win
-    if (hasPlayerWon(player)) {
-        game.winner = playerId;
-        game.phase = 'finished';
-        return { success: true, winner: playerId };
-    }
-
-    return { success: true };
-}
-
 function isValidMeld(cards) {
     return (isValidSet(cards) || isValidRun(cards));
 }
@@ -238,6 +238,7 @@ function layDownMeldNew(game, playerId) {
     }
 
     // Commit: Remove cards and mark player
+
     player.hand = handCopy;
     */
     player.hasLaidDown = true;
@@ -382,6 +383,7 @@ function cardSort(a, b) {
     startGame,
     drawCard,
     discardCard,
+    giveCards,
     layDownMeldNew,
     addToMeld,
     resetGame,
