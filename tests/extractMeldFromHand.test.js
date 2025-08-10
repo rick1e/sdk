@@ -1,3 +1,5 @@
+/* global describe, it, expect */
+
 const { extractMeldsFromHand } = require('../server/bot/strategy'); // Adjust path accordingly
 
 

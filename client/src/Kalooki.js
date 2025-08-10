@@ -40,14 +40,6 @@ const Kalooki = () => {
             setGame(updatedGame);
         });
 
-        /*socket.on('call_requested', ({ callerId, gameId }) => {
-            console.log(`${callerId} wants to call. Allow?`);
-            //if (isMyTurn) {
-            const allow = window.confirm(`${callerId} wants to call. Allow?`);
-            socket.emit('respond_to_call', { gameId, allow });
-            //}
-        });*/
-
         socket.on('call_requested', ({ callerId, gameId }) => {
             setCallRequest({ callerId, gameId });
         });
@@ -68,16 +60,6 @@ const Kalooki = () => {
             socket.off('call_denied');
         };
     }, []);
-
-    const handleAllow = () => {
-        socket.emit('respond_to_call', { gameId: callRequest.gameId, allow: true });
-        setCallRequest(null);
-    };
-
-    const handleDeny = () => {
-        socket.emit('respond_to_call', { gameId: callRequest.gameId, allow: false });
-        setCallRequest(null);
-    };
 
     const generateGameLink = () => {
         const url = `${window.location.origin}?gameId=${game.id}`;
@@ -112,7 +94,6 @@ const Kalooki = () => {
             setGame={setGame}
             setPlayerId={setPlayerId}
             emit={emit}
-            socketId={socket.id}
         />;
     }
 
@@ -145,8 +126,9 @@ const Kalooki = () => {
             {callRequest && (
                 <CallConfirmModal
                     callerId={callRequest.callerId}
-                    onConfirm={handleAllow}
-                    onCancel={handleDeny}
+                    emit={emit}
+                    callRequest={callRequest}
+                    setCallRequest={setCallRequest}
                 />
             )}
 
@@ -191,7 +173,6 @@ const Kalooki = () => {
                 meldsToLay={meldsToLay}
                 meldSelection={meldSelection}
                 setMeldSelection={setMeldSelection}
-                hand={hand}
                 emit={emit}
                 gameId={game.id}
                 game={game}

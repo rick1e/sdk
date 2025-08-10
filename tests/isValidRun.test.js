@@ -1,4 +1,6 @@
 // test/isValidRun.test.js
+/* global describe, it, expect */
+
 const { isValidRun } = require('../shared/game');
 
 describe('isValidRun', () => {

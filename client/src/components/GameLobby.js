@@ -1,6 +1,6 @@
 import React from "react";
 
-export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setGameId, setGame, emit, socketId }) => {
+export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setGameId, setGame, emit}) => {
 
     const createGame = () => {
         if (!playerName) return alert('Enter name');

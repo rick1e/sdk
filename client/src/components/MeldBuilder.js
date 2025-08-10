@@ -2,19 +2,15 @@
 import {renderCard} from "../utils/utilsRender";
 import React, {useState} from "react";
 
-export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, hand, emit, gameId, game }) => {
+export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, emit, gameId, game }) => {
 
     const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
 
     const addMeld = (cards) => {
-        const updatedMelds = [...meldsToLay, cards];
-        const updatedHand = hand.filter(c => !cards.includes(c));
-
         // Let the server handle the real update
         emit('update_meld_draft_add', {
             gameId,
-            meldsToLay: updatedMelds,
-            hand: updatedHand
+            cards: cards
         }, (res) => {
             if (res.error) {
                 console.error(res.error);

@@ -48,7 +48,7 @@ io.on('connection', socket => {
 
 // ================= HANDLERS =================
 function handleCreateGame(socket, cb) {
-    const gameId = Math.random().toString(36).substr(2, 6);
+    const gameId = Math.random().toString(36).substring(2, 6);
     games[gameId] = gameLogic.createGame(gameId, socket.id);
     socket.join(gameId);
     cb({ gameId });
@@ -145,24 +145,54 @@ function handleUpdateHandOrder({ gameId, newHand }, cb) {
     cb({ success: true });
 }
 
-function handleUpdateMeldDraftAdd({ gameId, meldsToLay, hand }, cb) {
+function handleUpdateMeldDraftAdd({ gameId, cards }, cb) {
     const game = games[gameId];
+    if (!game) return cb({ error: 'Game not found' });
+
     const player = game.players.find(p => p.id === this.id);
     if (!player) return cb({ error: 'Player not found' });
-    player.hand = hand;
-    player.meldsToLay = meldsToLay;
+
+    // Make sure cards is an array
+    if (!Array.isArray(cards) || cards.length === 0) {
+        return cb({ error: 'No cards provided' });
+    }
+
+    // Check if the player actually has all these cards
+    const tempHand = [...player.hand];
+    for (let card of cards) {
+        const idx = tempHand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+        if (idx === -1) {
+            return cb({ error: 'Invalid move: card not in hand' });
+        }
+        tempHand.splice(idx, 1); // remove matched card
+    }
+
+    // Move cards from hand to meldsToLay
+    player.hand = tempHand;
+    player.meldsToLay.push(cards);
+
+    // Broadcast update
     io.to(gameId).emit('game_update', game);
-    cb({ success: true });
+
+    cb({ success: true});
 }
 
 function handleUpdateMeldDraftRemove({ gameId, meld }, cb) {
     const game = games[gameId];
     const player = game.players.find(p => p.id === this.id);
     if (!player) return cb({ error: 'Player not found' });
-    player.meldsToLay = player.meldsToLay.filter(existingMeld =>
-        !gameLogic.isSameMeld(existingMeld, meld)
+
+    const index = player.meldsToLay.findIndex(existingMeld =>
+        gameLogic.isSameMeld(existingMeld, meld)
     );
-    player.hand.push(...meld);
+
+    if (index === -1) {
+        return cb({ error: 'Meld not found' });
+    }
+
+    const [removedMeld] = player.meldsToLay.splice(index, 1);
+    player.hand.push(...removedMeld);
+
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
 }
@@ -254,7 +284,6 @@ function proceedToNextTurn(io, game, botList, gameId) {
         io.to(gameId).emit('game_update', game);
     }
 }
-
 
 function startCallTimer(io, game, botList, gameId) {
     // Give players 3 seconds to call

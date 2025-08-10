@@ -5,28 +5,19 @@ const {
 } = require('./strategy');
 
 class KalookiBot {
-    constructor(io, gameId, botName = "BotPlayer-"+Math.random().toString(36).substr(2, 3)) {
+    constructor(io, gameId, botName = "BotPlayer-"+Math.random().toString(36).substring(2, 3)) {
         this.io = io;
         this.gameId = gameId;
         this.name = botName;
-        this.socket = this.createFakeSocket();
+        this.id = `bot-${Date.now()}`;
         this.hand = [];
-    }
-
-    createFakeSocket() {
-        return {
-            id: `bot-${Date.now()}`,
-            emit: () => {
-            },
-            on: () => {} // No-op for bot
-        };
     }
 
     joinGame(game) {
         if (!game) return;
 
         this.player = {
-            id: this.socket.id,
+            id: this.id,
             name: this.name,
             hand: [],
             meldsToLay: [],

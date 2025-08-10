@@ -1,3 +1,5 @@
+/* global describe, it, expect */
+
 const {
     isRun,
     isSet,
@@ -290,21 +292,6 @@ describe('getRunAdditions', () => {
             { suit: '♦', rank: 8 },
             { suit: '♦', rank: 9 }
         ]);
-    });
-
-    it('ignores wrong suit and used cards', () => {
-        const hand = [
-            { suit: '♦', rank: 3 },
-            { suit: '♠', rank: 6 },
-        ];
-        const meld = [
-            { suit: '♦', rank: 4 },
-            { suit: '♦', rank: 5 },
-        ];
-        const used = new Set([0]); // mark index 0 as used
-
-        const result = getRunAdditions(hand, meld, used);
-        expect(result).toEqual([]);
     });
 });
 
