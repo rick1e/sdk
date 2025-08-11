@@ -124,7 +124,7 @@ function handleDiscardCard(socket, { gameId, card }, cb) {
     game.callAvailable = true;
     game.callRequest = { playerId: null, approved: null };
 
-    if (game.phase === 'finished') {
+    if (game.phase !== 'finished') {
         startCallTimer(io, game, bots[gameId], gameId);
     }
 
