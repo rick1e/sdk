@@ -176,6 +176,7 @@ const Kalooki = () => {
                 emit={emit}
                 gameId={game.id}
                 game={game}
+                isMyTurn={isMyTurn()}
             />
         </div>
     );

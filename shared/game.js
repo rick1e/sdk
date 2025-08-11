@@ -100,7 +100,7 @@ function drawCard(game, playerId, fromDiscard = false) {
     if (!card) return { error: 'No cards to draw' };
 
     player.hand.push(card);
-    game.phase = 'discarding';
+    game.phase = 'meld';
     return { success: true, card };
 }
 

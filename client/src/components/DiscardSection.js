@@ -10,9 +10,22 @@ export const DiscardSection = ({ gameId, gamePhase, isMyTurn, emit, selectedCard
             setSelectedCard(null);
         });
     };
+    const readyToDiscard = () => {
+        emit('ready_to_discard_card', { gameId }, (res) => {
+            if (res.error) alert(res.error);
+        });
+    };
 
     return(
         <div>
+            {isMyTurn && gamePhase === 'meld' && (
+                <>
+                    <h4>Discard a card</h4>
+                    <button onClick={readyToDiscard} >
+                        Ready to discard
+                    </button>
+                </>
+            )}
             {isMyTurn && gamePhase === 'discarding' && (
                 <>
                     <h4>Discard a card</h4>

@@ -2,7 +2,7 @@
 import {renderCard} from "../utils/utilsRender";
 import React, {useState} from "react";
 
-export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, emit, gameId, game }) => {
+export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, emit, gameId, game, isMyTurn }) => {
 
     const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
 
@@ -40,6 +40,21 @@ export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, emit,
         });
     };
 
+    const onAddToSelectedMeld = () => {
+        emit('add_to_meld', {
+            gameId,
+            meldIndex: selectedMeldIndex,
+            cards: meldSelection
+        }, (res) => {
+            if (res.error) alert(res.error);
+            setMeldSelection([]);
+            setSelectedMeldIndex(null);
+        });
+    };
+
+    const canLay = () =>{
+        return !(game.phase === 'meld' && isMyTurn);
+    }
     return(
         <div>
             <button
@@ -77,23 +92,16 @@ export const MeldBuilder = ({ meldsToLay, meldSelection, setMeldSelection, emit,
                 <button
                     className="lay-button bg-blue-600 text-white px-4 py-2 rounded"
                     onClick={onLayDownList}
+                    disabled={canLay()}
                 >
                     Lay All Melds
                 </button>
             )}
 
             {meldSelection.length > 0 && selectedMeldIndex !== null && (
-                <button onClick={() => {
-                    emit('add_to_meld', {
-                        gameId,
-                        meldIndex: selectedMeldIndex,
-                        cards: meldSelection
-                    }, (res) => {
-                        if (res.error) alert(res.error);
-                        setMeldSelection([]);
-                        setSelectedMeldIndex(null);
-                    });
-                }}>
+                <button
+                    disabled={canLay()}
+                    onClick={onAddToSelectedMeld}>
                     Add to Selected Meld
                 </button>
             )}

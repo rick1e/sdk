@@ -34,6 +34,7 @@ io.on('connection', socket => {
 
     // --- Gameplay ---
     socket.on('draw_card', (data, cb) => handleDrawCard(socket, data, cb));
+    socket.on('ready_to_discard_card', (data, cb) => handleReadyToDiscardCard(socket, data, cb));
     socket.on('discard_card', (data, cb) => handleDiscardCard(socket, data, cb));
     socket.on('lay_down_meld_list', (data, cb) => handleLayDownMeld(socket, data, cb));
     socket.on('add_to_meld', (data, cb) => handleAddToMeld(socket, data, cb));
@@ -107,6 +108,13 @@ function handleDrawCard(socket, { gameId, fromDiscard }, cb) {
     cb(result);
 }
 
+function handleReadyToDiscardCard(socket, { gameId}, cb) {
+    const game = games[gameId];
+    game.phase = 'discarding';
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true});
+}
+
 function handleDiscardCard(socket, { gameId, card }, cb) {
     const game = games[gameId];
     const result = gameLogic.discardCard(game, socket.id, card);
@@ -116,7 +124,9 @@ function handleDiscardCard(socket, { gameId, card }, cb) {
     game.callAvailable = true;
     game.callRequest = { playerId: null, approved: null };
 
-    startCallTimer(io, game, bots[gameId], gameId);
+    if (game.phase === 'finished') {
+        startCallTimer(io, game, bots[gameId], gameId);
+    }
 
     io.to(gameId).emit('game_update', game);
     cb(result);
@@ -269,8 +279,10 @@ function proceedToNextTurn(io, game, botList, gameId) {
 
                 case 'discarding':
                     bot.discardCard(game);
-                    game.phase = 'waiting on call';
-                    startCallTimer(io, game, botList, gameId);
+                    if(game.phase !== 'finished') {
+                        game.phase = 'waiting on call';
+                        startCallTimer(io, game, botList, gameId);
+                    }
                     return; // Don't go to next turn yet
 
                 default:
