@@ -9,9 +9,12 @@ export const CallSection = ({ gameId, gamePhase, canCall, emit}) => {
 
     return(
         <div>
-            {canCall && gamePhase === 'waiting on call' && (
+            {gamePhase === 'waiting on call' && (
                 <>
-                    <button onClick={handleCall}>
+                    <button
+                        disabled={!canCall}
+                        onClick={handleCall}
+                    >
                         Call
                     </button>
                 </>

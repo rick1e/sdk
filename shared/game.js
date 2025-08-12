@@ -52,6 +52,7 @@ function createGame(gameId, creatorId) {
         callAvailable: false,
         callTimeout: null,
         callRequest: {
+            playerName: '',
             playerId: null,      // ID of player who called
             approved: null,      // true = allowed, false = denied, null = pending
         },

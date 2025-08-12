@@ -22,6 +22,7 @@ const Kalooki = () => {
     const [selectedCard, setSelectedCard] = useState(null);
     const [meldSelection, setMeldSelection] = useState([]);
     const [callRequest, setCallRequest] = useState(null);
+    const [callResponse, setCallResponse] = useState(null);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -40,16 +41,32 @@ const Kalooki = () => {
             setGame(updatedGame);
         });
 
-        socket.on('call_requested', ({ callerId, gameId }) => {
-            setCallRequest({ callerId, gameId });
+        socket.on('call_requested', ({ callerName, callerId, gameId }) => {
+            setCallRequest({ callerName, callerId, gameId });
         });
 
-        socket.on('call_approved', () => {
-            alert('Your call was approved. You received the card and a penalty card.');
+        socket.on('call_approved', ({ callerName, callerId}) => {
+            if(playerId === callerId) {
+                setCallResponse('Your call was approved. You received the card and a penalty card.');
+            }else{
+                setCallResponse(`${callerName}'s call was approved.`);
+            }
+            setCallRequest(null);
+            setTimeout(() => {
+                setCallResponse(null);
+            },5000)
         });
 
-        socket.on('call_denied', () => {
-            alert('Your call was denied.');
+        socket.on('call_denied', ({ callerName, callerId}) => {
+            if (playerId === callerId) {
+                setCallResponse('Your call was denied.');
+            } else {
+                setCallResponse(`${callerName}'s call was denied.`);
+            }
+            setCallRequest(null);
+            setTimeout(() => {
+                setCallResponse(null);
+            },5000)
         });
 
         return () => {
@@ -59,7 +76,7 @@ const Kalooki = () => {
             socket.off('call_approved');
             socket.off('call_denied');
         };
-    }, []);
+    }, [playerId]);
 
     const generateGameLink = () => {
         const url = `${window.location.origin}?gameId=${game.id}`;
@@ -80,7 +97,7 @@ const Kalooki = () => {
         const previousPlayerIndex = (game.currentPlayerIndex - 1 + game.players.length) % game.players.length;
         const currentPlayerId = game?.players?.[game.currentPlayerIndex]?.id;
         const previousPlayerId = game?.players?.[previousPlayerIndex]?.id;
-        return currentPlayerId !== playerId && previousPlayerId !== playerId;
+        return currentPlayerId !== playerId && previousPlayerId !== playerId && callRequest === null;
     };
 
     const emit = (event, data, callback) => socket.emit(event, data, callback);
@@ -122,13 +139,20 @@ const Kalooki = () => {
 
             <PlayerList players={game.players} currentPlayerIndex={game.currentPlayerIndex} />
 
+            {callResponse && (
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">Call Response</h2>
+                    <p className="mb-6">{callResponse}</p>
+                </div>
+            )}
+
 
             {callRequest && (
                 <CallConfirmModal
-                    callerId={callRequest.callerId}
                     emit={emit}
                     callRequest={callRequest}
                     setCallRequest={setCallRequest}
+                    isMyTurn={isMyTurn()}
                 />
             )}
 

@@ -122,7 +122,7 @@ function handleDiscardCard(socket, { gameId, card }, cb) {
 
 
     game.callAvailable = true;
-    game.callRequest = { playerId: null, approved: null };
+    game.callRequest = { playerName:'',  playerId: null, approved: null };
 
     if (game.phase !== 'finished') {
         startCallTimer(io, game, bots[gameId], gameId);
@@ -211,14 +211,15 @@ function handleCallCard(socket, gameId) {
     const game = games[gameId];
     const current = game.players[game.currentPlayerIndex];
     if (current.id === socket.id || !game.callAvailable || game.callRequest.playerId) return;
-    game.callRequest = { playerId: socket.id, approved: null };
+    const caller = game.players.find(p => p.id === socket.id);
+    game.callRequest = { playerName:caller.name, playerId: socket.id, approved: null };
     game.callAvailable = false;
     clearTimeout(timeouts[gameId]);
 
     if (current.isBot) {
         handleCallResponse(io, gameId, true);
     } else {
-        io.to(current.id).emit('call_requested', { callerId: socket.id, gameId });
+        io.to(gameId).emit('call_requested', { callerName:caller.name ,callerId: socket.id, gameId });
     }
 }
 
@@ -230,13 +231,13 @@ function handleCallResponse(io, gameId, allow) {
     game.callRequest.approved = allow;
     if (allow) {
         gameLogic.giveCards(game, callerId);
-        io.to(callerId).emit('call_approved');
+        io.to(gameId).emit('call_approved',{ callerName:game.callRequest.playerName ,callerId: game.callRequest.playerId});
     } else {
-        io.to(callerId).emit('call_denied');
+        io.to(gameId).emit('call_denied',{ callerName:game.callRequest.playerName ,callerId: game.callRequest.playerId});
     }
 
     game.phase = 'drawing';
-    game.callRequest = { playerId: null, approved: null };
+    game.callRequest = { playerName:'', playerId: null, approved: null };
     proceedToNextTurn(io, game, bots[gameId], gameId);
 }
 

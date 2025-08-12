@@ -34,7 +34,7 @@ export const GameControls = ({ gameId, gamePhase, discardValue, isMyTurn, emit }
                 <>
                     <h4>Draw a card</h4>
                     <button onClick={() => drawCard(false)}>Draw from Deck</button>
-                    <button onClick={() => drawCard(true)}>
+                    <button disabled={discardValue === 'empty'} onClick={() => drawCard(true)}>
                         Draw from Discard ({discardValue})
                     </button>
                 </>
