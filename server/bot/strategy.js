@@ -64,6 +64,7 @@ function chooseWorstCard(hand) {
     }, null);
 }
 
+/*
 function extractMeldsFromHand(hand) {
     const meldsToLay = [];
     const usedIndices = new Set();
@@ -119,6 +120,99 @@ function extractMeldsFromHand(hand) {
 
     return meldsToLay;
 }
+*/
+
+function extractMeldsFromHand(hand) {
+    const meldsToLay = [];
+    const usedIndices = new Set();
+
+    const isJoker = (card) => card.rank === 'JOKER';
+
+    // --- 1. Group by rank (sets) ---
+    const rankGroups = {};
+    hand.forEach((card, idx) => {
+        const key = isJoker(card) ? 'JOKER' : card.rank;
+        if (!rankGroups[key]) rankGroups[key] = [];
+        rankGroups[key].push({ ...card, index: idx });
+    });
+
+    for (const rank in rankGroups) {
+        if (rank === 'JOKER') continue; // jokers are used in other groups
+
+        const jokers = rankGroups['JOKER']?.filter(c => !usedIndices.has(c.index)) || [];
+        const group = rankGroups[rank].filter(c => !usedIndices.has(c.index));
+
+        const combined = [...group, ...jokers];
+
+        if (combined.length >= 3) {
+            meldsToLay.push(combined);
+            combined.forEach(c => usedIndices.add(c.index));
+        }
+    }
+
+    // --- 2. Group by suit (runs) ---
+    const suitGroups = {};
+    hand.forEach((card, idx) => {
+        const suitKey = isJoker(card) ? 'JOKER' : card.suit;
+        if (!suitGroups[suitKey]) suitGroups[suitKey] = [];
+        suitGroups[suitKey].push({ ...card, index: idx });
+    });
+
+    for (const suit in suitGroups) {
+        if (suit === 'JOKER') continue; // jokers don't form runs alone
+
+        const jokers = suitGroups['JOKER']?.filter(c => !usedIndices.has(c.index)) || [];
+        const cards = suitGroups[suit]
+            .filter(c => !usedIndices.has(c.index) && !isJoker(c))
+            .sort((a, b) => a.rank - b.rank);
+
+        let run = [];
+        let availableJokers = [...jokers];
+
+        for (let i = 0; i < cards.length; i++) {
+            if (run.length === 0) {
+                run.push(cards[i]);
+                continue;
+            }
+
+            let lastRank = run[run.length - 1].rank;
+            let gap = cards[i].rank - lastRank;
+
+            if (gap === 1) {
+                run.push(cards[i]);
+            } else if (gap > 1 && availableJokers.length >= gap - 1) {
+                // Fill all missing ranks with jokers
+                for (let g = 1; g < gap; g++) {
+                    run.push(availableJokers.pop());
+                }
+                run.push(cards[i]);
+            } else {
+                if (run.length >= 3) {
+                    meldsToLay.push(run);
+                    run.forEach(c => usedIndices.add(c.index));
+                }
+                run = [cards[i]];
+                availableJokers = [...jokers];
+            }
+        }
+
+        // Append remaining jokers at the end of a run
+        while (availableJokers.length > 0) {
+            run.push(availableJokers.pop());
+        }
+
+        if (run.length >= 3) {
+            meldsToLay.push(run);
+            run.forEach(c => usedIndices.add(c.index));
+        }
+    }
+
+    // --- 3. Remove index before returning ---
+    return meldsToLay.map(meld =>
+        meld.map(({ suit, rank }) => ({ suit, rank }))
+    );
+}
+
 
 function isRun(meld) {
     return meld.every(c => c.suit === meld[0].suit);

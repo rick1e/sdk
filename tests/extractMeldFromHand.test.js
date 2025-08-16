@@ -83,4 +83,30 @@ describe('extractMeldsFromHand', () => {
         ]);
     });
 
+    it('should extract valid sets and runs from the hand with JOKER', () => {
+        const hand = [
+            { suit: 'spades', rank: 6 },
+            { suit: 'spades', rank: 7 },
+            { rank: 'JOKER' },
+            { suit: 'spades', rank: 8 }, // run of spades 6–7–8
+            { suit: 'spades', rank: 10 }, // not part of any meld
+        ];
+
+        const result = extractMeldsFromHand(hand);
+
+        expect(result).toHaveLength(1);
+
+        expect(result).toEqual(
+            expect.arrayContaining([
+                [
+                    { suit: 'spades', rank: 6 },
+                    { suit: 'spades', rank: 7 },
+                    { suit: 'spades', rank: 8 },
+                    { rank: 'JOKER' },
+                    { suit: 'spades', rank: 10 },
+                ]
+            ])
+        );
+    });
+
 });
