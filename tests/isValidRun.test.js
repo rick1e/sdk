@@ -10,7 +10,7 @@ describe('isValidRun', () => {
             { rank: 5, suit: '♠' },
             { rank: 6, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('valid run without A K Q', () => {
@@ -19,7 +19,7 @@ describe('isValidRun', () => {
             { rank: 13, suit: '♠' },
             { rank: 12, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
     it('valid run without jokers', () => {
         const cards = [
@@ -27,7 +27,7 @@ describe('isValidRun', () => {
             { rank: 5, suit: '♠' },
             { rank: 6, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('valid run without jokers', () => {
@@ -51,7 +51,7 @@ describe('isValidRun', () => {
             { rank: 'JOKER' },
             { rank: 6, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('valid run with joker at start', () => {
@@ -60,7 +60,7 @@ describe('isValidRun', () => {
             { rank: 2, suit: '♥' },
             { rank: 3, suit: '♥' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('invalid run with different suits', () => {
@@ -69,7 +69,7 @@ describe('isValidRun', () => {
             { rank: 4, suit: '♠' },
             { rank: 5, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(false);
+        expect(isValidRun(cards,3)).toBe(false);
     });
 
     it('invalid run with gap too large for jokers', () => {
@@ -78,7 +78,7 @@ describe('isValidRun', () => {
             { rank: 'JOKER' },
             { rank: 8, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(false);
+        expect(isValidRun(cards,3)).toBe(false);
     });
 
     it('valid run with multiple jokers filling gaps', () => {
@@ -107,7 +107,7 @@ describe('isValidRun', () => {
             { rank: 'JOKER' },
             { rank: 'JOKER' }
         ];
-        expect(isValidRun(cards)).toBe(false);
+        expect(isValidRun(cards,3)).toBe(false);
     });
 });
 
@@ -118,7 +118,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 2, suit: '♥' },
             { rank: 3, suit: '♥' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('valid run: Ace high (Q-K-A of ♠)', () => {
@@ -127,7 +127,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 13, suit: '♠' },
             { rank: 1, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('valid run: Joker fills gap in A-3 of ♦', () => {
@@ -136,7 +136,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 'JOKER' },
             { rank: 3, suit: '♦' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('valid run: Joker fills gap in Q-A of ♣', () => {
@@ -145,7 +145,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 'JOKER' },
             { rank: 1, suit: '♣' }
         ];
-        expect(isValidRun(cards)).toBe(true);
+        expect(isValidRun(cards,3)).toBe(true);
     });
 
     it('invalid run: mixed suits (A-2-3)', () => {
@@ -154,7 +154,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 2, suit: '♠' },
             { rank: 3, suit: '♥' }
         ];
-        expect(isValidRun(cards)).toBe(false);
+        expect(isValidRun(cards,3)).toBe(false);
     });
 
     it('invalid run: K-A-2 is not a valid wrap-around', () => {
@@ -163,7 +163,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 1, suit: '♠' },
             { rank: 2, suit: '♠' }
         ];
-        expect(isValidRun(cards)).toBe(false);
+        expect(isValidRun(cards,3)).toBe(false);
     });
 
     it('invalid run: duplicate Ace (A-A-2)', () => {
@@ -172,7 +172,7 @@ describe('isValidRun - Ace Flexibility', () => {
             { rank: 1, suit: '♣' },
             { rank: 2, suit: '♣' }
         ];
-        expect(isValidRun(cards)).toBe(false);
+        expect(isValidRun(cards,3)).toBe(false);
     });
 });
 

@@ -1,19 +1,20 @@
-const NUM_CARDS_IN_HAND = 13;
+const NUM_CARDS_IN_HAND = 9;
 const JOKERS = 2;
+const VALID_RUN_LENGTH = 4;
 
-function createDeck() {
+function createDeck(numberOfDecks) {
     const suits = ['♠', '♣', '♥', '♦'];
     const ranks = [...Array(13)].map((_, i) => i + 1); // 1 (Ace) to 13 (King)
     let deck = [];
 
-    for (let i = 0; i < 2; i++) { // 2 decks + jokers
+    for (let i = 0; i < numberOfDecks; i++) { // 2 decks + jokers
         suits.forEach(suit => ranks.forEach(rank => {
             deck.push({ suit, rank });
         }));
     }
 
     // Add jokers
-    for (let i = 0; i < JOKERS; i++) {
+    for (let i = 0; i < (JOKERS * numberOfDecks); i++) {
         deck.push({ rank: 'JOKER' });
     }
 
@@ -24,9 +25,9 @@ function shuffle(deck) {
     return deck.sort(() => Math.random() - 0.5);
 }
 
-function dealCards(deck, numPlayers) {
+function dealCards(deck, numPlayers,numCards = NUM_CARDS_IN_HAND) {
     const hands = Array.from({ length: numPlayers }, () => []);
-    for (let i = 0; i < NUM_CARDS_IN_HAND; i++) {
+    for (let i = 0; i < numCards; i++) {
         for (let j = 0; j < numPlayers; j++) {
             hands[j].push(deck.pop());
         }
@@ -34,8 +35,8 @@ function dealCards(deck, numPlayers) {
     return hands;
 }
 
-function createGame(gameId, creatorId) {
-    const deck = createDeck();
+function createGame(gameId, creatorId, settings = {}) {
+    const deck = createDeck(settings.numDecks || 2);
     // const players = [{ id: creatorId, hand: [], name: 'Host' }];
     const players = [];
     return {
@@ -56,17 +57,27 @@ function createGame(gameId, creatorId) {
             playerId: null,      // ID of player who called
             approved: null,      // true = allowed, false = denied, null = pending
         },
+        rules: {
+            numberOfDecks: settings.numDecks ?? 2,
+            requireNumberOfMeldsToLay:
+                (settings.numSets ?? 2) + (settings.numRuns ?? 1),
+            requireNumberOfRunsToLay: settings.numRuns ?? 1,
+            requireNumberOfSetToLay: settings.numSets ?? 2,
+            callDurationTimerSec: settings.callDurationTimerSec ?? 10,
+            botThinkTimeMs: settings.botThinkTimeMs ?? 2500
+        }
     };
 }
 
 function joinGame(game, playerId, name) {
     if (game.phase !== 'waiting') return;
-    game.players.push({ id: playerId, hand: [], meldsToLay: [], name });
+    game.players.push({ id: playerId, hand: [], meldsToLay: [],hasLaidDown:false , name });
 }
 
 function startGame(game) {
     if (game.players.length < 2) return;
-    const hands = dealCards(game.deck, game.players.length);
+    const numberOfCardsInHand = (game.rules.requireNumberOfRunsToLay*4) + (game.rules.requireNumberOfSetToLay*3);
+    const hands = dealCards(game.deck, game.players.length,numberOfCardsInHand);
     game.players.forEach((p, idx) => (p.hand = hands[idx]));
     // Place top card in discard pile
     game.discardPile.push(game.deck.pop());
@@ -76,8 +87,9 @@ function startGame(game) {
 }
 
 function resetGame(game) {
-    const deck = createDeck();
-    const hands = dealCards(deck, game.players.length);
+    const deck = createDeck(game.rules.numberOfDecks);
+    const numberOfCardsInHand = (game.rules.requireNumberOfRunsToLay*4) + (game.rules.requireNumberOfSetToLay*3);
+    const hands = dealCards(deck, game.players.length, numberOfCardsInHand);
 
     game.players.forEach((p, idx) => {
         p.hand = hands[idx];
@@ -95,7 +107,7 @@ function resetGame(game) {
 
 function drawCard(game, playerId, fromDiscard = false) {
     const player = game.players[game.currentPlayerIndex];
-    if (player.id !== playerId || game.phase !== 'drawing') return { error: 'Not your turn or wrong phase' };
+    if ((game.phase !== 'drawing after call' && game.phase !== 'drawing' ) || (player.id !== playerId && game.phase === 'drawing') ) return { error: 'Not your turn or wrong phase' };
 
     const card = fromDiscard ? game.discardPile.pop() : game.deck.pop();
     if (!card) return { error: 'No cards to draw' };
@@ -122,20 +134,13 @@ function giveCards(game, playerId) {
 }
 
 function discardCard(game, playerId, card) {
-    console.log("discarding card -1");
     const player = game.players[game.currentPlayerIndex];
-
-    console.log("player.id",player.id);
-    console.log("playa ID",playerId);
-    console.log("game Phase",game.phase);
 
     if (player.id !== playerId || game.phase !== 'discarding') return { error: 'Invalid discard' };
 
-    console.log("discarding card -2");
     const index = player.hand.findIndex(c => isSameCard(c, card));
     if (index === -1) return { error: 'Card not in hand' };
 
-    console.log("discarding card -3");
     game.discardPile.push(player.hand.splice(index, 1)[0]);
 
     // ✅ Check win condition
@@ -144,11 +149,12 @@ function discardCard(game, playerId, card) {
         game.phase = 'finished';
         return { success: true, winner: playerId };
     }
-    console.log("discarding card -4");
 
     // Continue game
     game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
     game.phase = 'waiting on call';
+    game.callAvailable = true;
+    game.callRequest = { playerName:'',  playerId: null, approved: null };
     return { success: true };
 }
 
@@ -168,7 +174,7 @@ function isValidSet(cards) {
     return new Set(ranks).size === 1;
 }
 
-function isValidRun(cards, minLength = 3) {
+function isValidRun(cards, minLength = VALID_RUN_LENGTH) {
     if (cards.length < minLength) return false;
 
     const jokers = cards.filter(c => c.rank === 'JOKER');
@@ -208,6 +214,21 @@ function isValidMeld(cards) {
     return (isValidSet(cards) || isValidRun(cards));
 }
 
+function countSetsAndRuns(melds) {
+    let sets = 0;
+    let runs = 0;
+
+    for (const meld of melds) {
+        if (isValidSet(meld)) {
+            sets++;
+        } else if (isValidRun(meld)) {
+            runs++;
+        }
+    }
+
+    return { sets, runs };
+}
+
 function layDownMeldNew(game, playerId) {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return { error: 'Player not found' };
@@ -218,14 +239,16 @@ function layDownMeldNew(game, playerId) {
     const allValid = melds.every(isValidMeld); // assumes isValidMeld exists
     if (!allValid) return { error: 'One or more melds are invalid' };
 
-    // Rule: Require 3 melds to lay down
-    /*
-    if (!player.hasLaidDown && game.rules?.requireThreeMeldsToLay) {
-        if (melds.length < 3) {
-            return { error: 'You must have at least 3 melds to lay down in this game.' };
-        }
+    // Rule: Require N melds to lay down
+
+    if (!player.hasLaidDown && melds.length < game.rules?.requireNumberOfMeldsToLay) {
+        return { error: `You must have at least ${game.rules?.requireNumberOfMeldsToLay} melds to lay down in this game.` };
     }
-     */
+
+    const {sets,runs} = countSetsAndRuns(melds);
+    if (sets !== game.rules?.requireNumberOfSetToLay || runs !== game.rules?.requireNumberOfRunsToLay) {
+        return { error: `You must have ${game.rules?.requireNumberOfSetToLay} sets and ${game.rules?.requireNumberOfRunsToLay} runs to lay down in this game.` };
+    }
 
     // Check if all cards exist in player hand
     /*
@@ -265,15 +288,11 @@ function layDownMeldNew(game, playerId) {
 
 
 function addToMeld(game, playerId, meldIndex, cards) {
-    console.log('playerId:', playerId);
     const player = game.players.find(p => p.id === playerId);
     if (!player) return { error: 'Player not found' };
     if (!game.melds || !game.melds[meldIndex]) return { error: 'Invalid meld' };
 
     const meld = game.melds[meldIndex];
-    console.log('meld:', meld);
-    console.log('cards:', cards);
-
     // Make a copy of meld cards and add new cards
     const newMeldCards = [...meld.cards, ...cards];
 
@@ -284,6 +303,7 @@ function addToMeld(game, playerId, meldIndex, cards) {
 
     // Verify all cards are in hand
     for (let card of cards) {
+        console.log(player.id);
         const index = player.hand.findIndex(c => isSameCard(c, card));
         if (index === -1) return { error: 'Card not in hand' };
     }
@@ -389,5 +409,6 @@ function cardSort(a, b) {
     addToMeld,
     resetGame,
     isValidRun,
-    isSameMeld
+    isSameMeld,
+    VALID_RUN_LENGTH
 };

@@ -3,165 +3,238 @@ const {
     discardCard,
     layDownMeldNew,
     addToMeld,
+    VALID_RUN_LENGTH,
 } = require('../../shared/game');
+
+const {
+    suggestNeededCards,
+    isSuggestedContainsCard,
+    suggestDiscardableCards
+} =  require('./thinking');
 
 function botPlayDraw(player, gameState) {
     console.log("bot playing draw turn");
-    drawBotCard(gameState, player.id);
+    drawBotCard(gameState, player);
 }
 
 function botPlayMelds(player, gameState) {
     console.log("bot playing melds turn");
-    const botIndex = gameState.currentPlayerIndex;
 
-    layDownInitialMelds(player, gameState);
-    extendExistingMelds(gameState.players[botIndex], gameState);
+    if(!player.hasLaidDown) {
+        console.log("bot trying to lay");
+        layDownInitialMelds(player, gameState);
+    }
+    else {
+        console.log("bot tacking on");
+        extendExistingMelds(player, gameState);
+    }
 }
 
 function botPlayDiscard(player, gameState) {
     console.log("bot playing discard turn");
     const botIndex = gameState.currentPlayerIndex;
 
-    const discard = chooseWorstCard(gameState.players[botIndex].hand);
+    const discard = chooseWorstCard(gameState,gameState.players[botIndex].hand, gameState.players[botIndex].meldsToLay);
     discardCard(gameState, player.id, discard);
 }
 
+function botAllowCall(player, gameState){
+    return  player.hasLaidDown || !botWantsDiscard(gameState, player);
+}
+
+function botMakeCall(player, gameState) {
+    return botWantsDiscard(gameState, player);
+}
+
 function layDownInitialMelds(player, gameState) {
-    const meldsToLay = extractMeldsFromHand(player.hand);
-    if (meldsToLay.length > 0) {
-        player.meldsToLay = meldsToLay;
-        const cardsToRemove = meldsToLay.flat();
-        player.hand = player.hand.filter(card =>
-            !cardsToRemove.some(m => m.suit === card.suit && m.rank === card.rank)
-        );
+
+    let remainingSets = gameState.rules.requireNumberOfSetToLay;
+    let remainingRuns = gameState.rules.requireNumberOfRunsToLay;
+
+    console.log("remaining Sets", remainingSets);
+
+    for (let i = 0; i < player.meldsToLay.length; i++) {
+        if (isSet(player.meldsToLay[i])) {
+            remainingSets--;
+        }
+        if (isRun(player.meldsToLay[i])) {
+            remainingRuns--;
+        }
+    }
+
+    console.log("remaining Sets", remainingSets);
+
+
+    const meldsToLay = extractMeldsFromHand(player.hand,remainingSets,remainingRuns);
+
+    player.meldsToLay = [...player.meldsToLay, ...meldsToLay];
+
+    const cardsToRemove = meldsToLay.flat();
+
+    player.hand = player.hand.filter(card =>
+        !cardsToRemove.some(m => m.suit === card.suit && m.rank === card.rank)
+    );
+
+    if (player.meldsToLay.length >= gameState.rules?.requireNumberOfMeldsToLay) {
         layDownMeldNew(gameState, player.id);
     }
 }
-
 function extendExistingMelds(player, gameState) {
     const extensions = findMeldExtensions(player.hand, gameState.melds);
     for (const extension of extensions) {
-        addToMeld(gameState, player.id, extension.meldIndex, extension.cards);
+        console.log(addToMeld(gameState, player.id, extension.meldIndex, extension.cards) );
     }
 }
 
-function drawBotCard(gameState, playerId) {
-    const wantsDiscard = Math.random() > 0.5;
+function drawBotCard(gameState, player) {
+
+    if(player.hasLaidDown){
+        drawCard(gameState, player.id, false);
+        return;
+    }
+
+    const wantsDiscard = botWantsDiscard(gameState, player);
 
     if (wantsDiscard) {
         console.log("bot drawing from discard pile");
-        drawCard(gameState, playerId, true);
+        drawCard(gameState, player.id, true);
     } else {
         console.log("bot drawing from deck");
-        drawCard(gameState, playerId, false);
+        drawCard(gameState, player.id, false);
     }
 }
 
-function chooseWorstCard(hand) {
+function botWantsDiscard(gameState, player) {
+
+    const topOfDiscardPile = gameState.discardPile.slice(-1)[0];
+    const usedIndices = new Set();
+
+    const runs = extractRuns(player.hand, usedIndices);
+    const sets = extractSets(player.hand, usedIndices);
+
+    let remainingSets = gameState.rules.requireNumberOfSetToLay;
+    let remainingRuns = gameState.rules.requireNumberOfRunsToLay;
+
+    for (let i = 0; i < player.meldsToLay.length; i++) {
+        if (isSet(player.meldsToLay[i])) {
+            remainingSets--;
+        }
+        if (isRun(player.meldsToLay[i])) {
+            remainingRuns--;
+        }
+    }
+
+
+
+    const neededCards = suggestNeededCards(
+        player.hand,
+        remainingSets,
+        remainingRuns,
+        sets,
+        runs
+    );
+
+    return  isSuggestedContainsCard(neededCards,topOfDiscardPile);
+
+}
+
+function chooseWorstCard(gameState,hand,meldsToLay) {
+
+    let remainingSets = gameState.rules.requireNumberOfSetToLay;
+    let remainingRuns = gameState.rules.requireNumberOfRunsToLay;
+
+    for (let i = 0; i < meldsToLay.length; i++) {
+        if (isSet(meldsToLay[i])) {
+            remainingSets--;
+        }
+        if (isRun(meldsToLay[i])) {
+            remainingRuns--;
+        }
+    }
+
+    const discardableCards = suggestDiscardableCards(
+        hand,
+        remainingSets,
+        remainingRuns
+    );
+
+
+
+    const toDiscard = discardableCards.reduce((worst, card) => {
+        if (!worst) return card;
+        return card.rank > worst.rank ? card : worst;
+    }, null);
+
+    if( toDiscard !== null) {
+        return toDiscard;
+    }
+
     return hand.reduce((worst, card) => {
         if (!worst) return card;
         return card.rank > worst.rank ? card : worst;
     }, null);
 }
 
-/*
-function extractMeldsFromHand(hand) {
-    const meldsToLay = [];
+function extractMeldsFromHand(hand, remainingSets, remainingRuns) {
     const usedIndices = new Set();
+    let meldsFromRuns = [];
+    let meldsFromSets = [];
 
-    const rankGroups = {};
-    hand.forEach((card, idx) => {
-        if (!rankGroups[card.rank]) rankGroups[card.rank] = [];
-        rankGroups[card.rank].push({ ...card, index: idx });
-    });
-
-    for (const rank in rankGroups) {
-        const group = rankGroups[rank].filter(c => !usedIndices.has(c.index));
-        if (group.length >= 3) {
-            const meld = group.slice(0, 4).map(c => ({ suit: c.suit, rank: c.rank }));
-            meldsToLay.push(meld);
-            group.slice(0, meld.length).forEach(c => usedIndices.add(c.index));
-        }
+    if(remainingRuns > 0) {
+        meldsFromRuns = extractRuns(hand, usedIndices);
+        meldsFromRuns = meldsFromRuns.slice(0,remainingRuns);
+    }
+    if(remainingSets > 0) {
+        meldsFromSets = extractSets(hand, usedIndices);
+        meldsFromSets = meldsFromSets.slice(0,remainingSets);
     }
 
-    const suitGroups = {};
-    hand.forEach((card, idx) => {
-        if (!suitGroups[card.suit]) suitGroups[card.suit] = [];
-        suitGroups[card.suit].push({ ...card, index: idx });
-    });
-
-    for (const suit in suitGroups) {
-        const cards = suitGroups[suit]
-            .filter(c => !usedIndices.has(c.index))
-            .sort((a, b) => a.rank - b.rank);
-
-        let run = [];
-        for (let i = 0; i < cards.length; i++) {
-            if (run.length === 0 || cards[i].rank === run[run.length - 1].rank + 1) {
-                run.push(cards[i]);
-            } else if (cards[i].rank === run[run.length - 1].rank) {
-                // continue;
-            } else {
-                if (run.length >= 3) {
-                    const meld = run.map(c => ({ suit: c.suit, rank: c.rank }));
-                    meldsToLay.push(meld);
-                    run.forEach(c => usedIndices.add(c.index));
-                }
-                run = [cards[i]];
-            }
-        }
-
-        if (run.length >= 3) {
-            const meld = run.map(c => ({ suit: c.suit, rank: c.rank }));
-            meldsToLay.push(meld);
-            run.forEach(c => usedIndices.add(c.index));
-        }
-    }
-
-    return meldsToLay;
+    const meldsToLay = [...meldsFromSets, ...meldsFromRuns];
+    return cleanMelds(meldsToLay);
 }
-*/
 
-function extractMeldsFromHand(hand) {
-    const meldsToLay = [];
-    const usedIndices = new Set();
+// --- Helpers ---
 
-    const isJoker = (card) => card.rank === 'JOKER';
+const isJoker = (card) => card.rank === 'JOKER';
 
-    // --- 1. Group by rank (sets) ---
-    const rankGroups = {};
-    hand.forEach((card, idx) => {
-        const key = isJoker(card) ? 'JOKER' : card.rank;
-        if (!rankGroups[key]) rankGroups[key] = [];
-        rankGroups[key].push({ ...card, index: idx });
-    });
+function groupBy(array, keyFn) {
+    return array.reduce((groups, item, idx) => {
+        const key = keyFn(item);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ ...item, index: idx });
+        return groups;
+    }, {});
+}
+
+// --- 1. Extract Sets (group by rank) ---
+function extractSets(hand, usedIndices) {
+    const melds = [];
+    const rankGroups = groupBy(hand, (card) => isJoker(card) ? 'JOKER' : card.rank);
 
     for (const rank in rankGroups) {
-        if (rank === 'JOKER') continue; // jokers are used in other groups
+        if (rank === 'JOKER') continue;
 
-        const jokers = rankGroups['JOKER']?.filter(c => !usedIndices.has(c.index)) || [];
+        const jokers = (rankGroups['JOKER'] || []).filter(c => !usedIndices.has(c.index));
         const group = rankGroups[rank].filter(c => !usedIndices.has(c.index));
-
         const combined = [...group, ...jokers];
 
         if (combined.length >= 3) {
-            meldsToLay.push(combined);
+            melds.push(combined);
             combined.forEach(c => usedIndices.add(c.index));
         }
     }
+    return melds;
+}
 
-    // --- 2. Group by suit (runs) ---
-    const suitGroups = {};
-    hand.forEach((card, idx) => {
-        const suitKey = isJoker(card) ? 'JOKER' : card.suit;
-        if (!suitGroups[suitKey]) suitGroups[suitKey] = [];
-        suitGroups[suitKey].push({ ...card, index: idx });
-    });
+// --- 2. Extract Runs (group by suit) ---
+function extractRuns(hand, usedIndices) {
+    const melds = [];
+    const suitGroups = groupBy(hand, (card) => isJoker(card) ? 'JOKER' : card.suit);
 
     for (const suit in suitGroups) {
-        if (suit === 'JOKER') continue; // jokers don't form runs alone
+        if (suit === 'JOKER') continue;
 
-        const jokers = suitGroups['JOKER']?.filter(c => !usedIndices.has(c.index)) || [];
+        const jokers = (suitGroups['JOKER'] || []).filter(c => !usedIndices.has(c.index));
         const cards = suitGroups[suit]
             .filter(c => !usedIndices.has(c.index) && !isJoker(c))
             .sort((a, b) => a.rank - b.rank);
@@ -181,14 +254,13 @@ function extractMeldsFromHand(hand) {
             if (gap === 1) {
                 run.push(cards[i]);
             } else if (gap > 1 && availableJokers.length >= gap - 1) {
-                // Fill all missing ranks with jokers
                 for (let g = 1; g < gap; g++) {
                     run.push(availableJokers.pop());
                 }
                 run.push(cards[i]);
             } else {
-                if (run.length >= 3) {
-                    meldsToLay.push(run);
+                if (run.length >= VALID_RUN_LENGTH) {
+                    melds.push(run);
                     run.forEach(c => usedIndices.add(c.index));
                 }
                 run = [cards[i]];
@@ -196,30 +268,40 @@ function extractMeldsFromHand(hand) {
             }
         }
 
-        // Append remaining jokers at the end of a run
         while (availableJokers.length > 0) {
             run.push(availableJokers.pop());
         }
 
-        if (run.length >= 3) {
-            meldsToLay.push(run);
+        if (run.length >= VALID_RUN_LENGTH) {
+            melds.push(run);
             run.forEach(c => usedIndices.add(c.index));
         }
     }
 
-    // --- 3. Remove index before returning ---
-    return meldsToLay.map(meld =>
+    return melds;
+}
+
+// --- 3. Cleanup output ---
+function cleanMelds(melds) {
+    return melds.map(meld =>
         meld.map(({ suit, rank }) => ({ suit, rank }))
     );
 }
 
-
 function isRun(meld) {
-    return meld.every(c => c.suit === meld[0].suit);
+    const nonJokers = meld.filter(c => c.rank !== 'JOKER');
+    if (nonJokers.length === 0) return true; // all jokers = valid run
+
+    const suit = nonJokers[0].suit;
+    return nonJokers.every(c => c.suit === suit);
 }
 
 function isSet(meld) {
-    return new Set(meld.map(c => c.rank)).size === 1;
+    const nonJokers = meld.filter(c => c.rank !== 'JOKER');
+    if (nonJokers.length === 0) return true; // all jokers = valid set
+
+    const rank = nonJokers[0].rank;
+    return nonJokers.every(c => c.rank === rank);
 }
 
 function getSetAdditions(botHand, meld, usedCardIndexes) {
@@ -301,10 +383,14 @@ module.exports = {
     botPlayDraw,
     botPlayDiscard,
     botPlayMelds,
+    botAllowCall,
+    botMakeCall,
     extractMeldsFromHand,
     isRun,
     isSet,
     getSetAdditions,
     getRunAdditions,
-    findMeldExtensions
+    findMeldExtensions,
+    layDownInitialMelds,
+    layDownMeldNew
 };

@@ -10,6 +10,7 @@ import {DiscardSection} from './components/DiscardSection';
 import {GameFinished} from "./components/GameFinished";
 import {CallSection} from "./components/CallSection";
 import CallConfirmModal from "./components/CallConfirmModal";
+import CountdownBar from "./components/ContdownBar";
 
 const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 const socket = io(backendUrl);
@@ -23,6 +24,7 @@ const Kalooki = () => {
     const [meldSelection, setMeldSelection] = useState([]);
     const [callRequest, setCallRequest] = useState(null);
     const [callResponse, setCallResponse] = useState(null);
+    const [debugMode, setDebugMode] = useState(false);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -124,6 +126,28 @@ const Kalooki = () => {
             >
                 Copy Game Link
             </button>
+
+            <div className="mt-2">
+                <p>
+                    <strong>Required Sets / Triples:</strong> {game.rules?.requireNumberOfSetToLay}
+                </p>
+                <p>
+                    <strong>Required Runs / Straights:</strong> {game.rules?.requireNumberOfRunsToLay}
+                </p>
+            </div>
+
+            <div className="mt-4">
+                <label className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        checked={debugMode}
+                        onChange={e => setDebugMode(e.target.checked)}
+                    />
+                    <span>Debug Mode</span>
+                </label>
+            </div>
+
+
             <h3>Phase: {game.phase}</h3>
             <p><strong>Your Turn:</strong> {isMyTurn() ? 'Yes' : 'No'}</p>
 
@@ -137,7 +161,11 @@ const Kalooki = () => {
                 setMeldSelection={setMeldSelection}
             />
 
-            <PlayerList players={game.players} currentPlayerIndex={game.currentPlayerIndex} />
+            <PlayerList
+                players={game.players}
+                currentPlayerIndex={game.currentPlayerIndex}
+                debugMode={debugMode}
+            />
 
             {callResponse && (
                 <div>
@@ -170,6 +198,8 @@ const Kalooki = () => {
                 gamePhase={game.phase}
                 canCall={isCanCall()}
             />
+            {(game.phase === 'waiting on call' && !callRequest && !callResponse) && (
+            <CountdownBar duration={(game.rules?.callDurationTimerSec - 0.5) }/>)}
 
             <DiscardSection
                 emit={emit}
@@ -201,6 +231,16 @@ const Kalooki = () => {
                 gameId={game.id}
                 game={game}
                 isMyTurn={isMyTurn()}
+            />
+
+            <GameFinished
+                emit={emit}
+                gameId={game.id}
+                gamePhase={game.phase}
+                players={game.players}
+                winner={game.winner}
+                setSelectedCard={setSelectedCard}
+                setMeldSelection={setMeldSelection}
             />
         </div>
     );

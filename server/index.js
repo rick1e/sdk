@@ -15,8 +15,7 @@ let games = {};  // in-memory game store
 const bots = {};
 const timeouts = {};
 
-const CALL_TIMER_DURATION_MS = 10000;
-const BOT_TURN_TIMER_DURATION_MS = 1000;
+const BOT_TURN_TIMER_DURATION_MS = 2000;
 
 
 io.on('connection', socket => {
@@ -25,7 +24,7 @@ io.on('connection', socket => {
     socket.on('disconnect', () => console.log('Player disconnected:', socket.id));
 
     // --- Game Lifecycle ---
-    socket.on('create_game', (data, cb) => handleCreateGame(socket, cb));
+    socket.on('create_game', (data, cb) => handleCreateGame(socket, data, cb));
     socket.on('join_game', (data, cb) => handleJoinGame(socket, data, cb));
     socket.on('rejoin_game', (data, cb) => handleRejoinGame(socket, data, cb));
     socket.on('add_bot', (data, cb) => handleAddBot(socket, data, cb));
@@ -44,13 +43,14 @@ io.on('connection', socket => {
 
     // --- Call Logic ---
     socket.on('call_card', ({ gameId }) => handleCallCard(socket, gameId));
-    socket.on('respond_to_call', ({ gameId, allow }) => handleCallResponse(io, gameId, allow));
+    socket.on('respond_to_call', ({ gameId, allow }) => handleCallResponse(io, socket, gameId, allow));
 });
 
 // ================= HANDLERS =================
-function handleCreateGame(socket, cb) {
+function handleCreateGame(socket, { gameIdx, playerName, settings }, cb) {
     const gameId = Math.random().toString(36).substring(2, 6);
-    games[gameId] = gameLogic.createGame(gameId, socket.id);
+    games[gameId] = gameLogic.createGame(gameId, socket.id,settings);
+    console.log('Created new game :', games[gameId]);
     socket.join(gameId);
     cb({ gameId });
 }
@@ -119,10 +119,6 @@ function handleDiscardCard(socket, { gameId, card }, cb) {
     const game = games[gameId];
     const result = gameLogic.discardCard(game, socket.id, card);
     if (timeouts[gameId]) clearTimeout(timeouts[gameId]);
-
-
-    game.callAvailable = true;
-    game.callRequest = { playerName:'',  playerId: null, approved: null };
 
     if (game.phase !== 'finished') {
         startCallTimer(io, game, bots[gameId], gameId);
@@ -209,35 +205,61 @@ function handleUpdateMeldDraftRemove({ gameId, meld }, cb) {
 
 function handleCallCard(socket, gameId) {
     const game = games[gameId];
+    const botList = bots[gameId];
     const current = game.players[game.currentPlayerIndex];
+    console.log('------handleCallCard----------');
+    console.log('current.id === socket.id ',current.id === socket.id);
+    console.log('game.callAvailable : ',game.callAvailable);
+    console.log('game.callRequest.playerId : ',game.callRequest.playerId);
+    console.log('RETURN BOOL : ',current.id === socket.id || !game.callAvailable || game.callRequest.playerId);
+
     if (current.id === socket.id || !game.callAvailable || game.callRequest.playerId) return;
+
+
+    console.log('------handleCallCard passed return----------');
+
     const caller = game.players.find(p => p.id === socket.id);
+
     game.callRequest = { playerName:caller.name, playerId: socket.id, approved: null };
     game.callAvailable = false;
     clearTimeout(timeouts[gameId]);
 
     if (current.isBot) {
-        handleCallResponse(io, gameId, true);
+        const bot = botList.find(b => b.player.id === current.id);
+        const botAllow = bot.decideCall(game);
+        handleCallResponse(io,{id:bot.id} , gameId, botAllow);
     } else {
         io.to(gameId).emit('call_requested', { callerName:caller.name ,callerId: socket.id, gameId });
     }
 }
 
-function handleCallResponse(io, gameId, allow) {
+function handleCallResponse(io, socket, gameId, allow) {
     const game = games[gameId];
     const { playerId: callerId } = game.callRequest;
     if (!callerId) return;
 
     game.callRequest.approved = allow;
     if (allow) {
+        console.log("handleCallResponse allow");
         gameLogic.giveCards(game, callerId);
+        console.log("handleCallResponse gave cards");
+        game.phase = 'drawing after call';
+        console.log(gameLogic.drawCard(game, socket.id, false));
+        console.log("handleCallResponse draw cards from deck");
         io.to(gameId).emit('call_approved',{ callerName:game.callRequest.playerName ,callerId: game.callRequest.playerId});
     } else {
+        console.log("handleCallResponse allow");
+        game.phase = 'drawing after call';
+        console.log(gameLogic.drawCard(game, socket.id, true));
+        console.log("handleCallResponse draw cards from discard");
         io.to(gameId).emit('call_denied',{ callerName:game.callRequest.playerName ,callerId: game.callRequest.playerId});
     }
 
-    game.phase = 'drawing';
+    if ( game.phase === 'waiting on call' ) {
+        game.phase = 'drawing';
+    }
     game.callRequest = { playerName:'', playerId: null, approved: null };
+    console.log("handleCallResponse proceed to next turn");
     proceedToNextTurn(io, game, bots[gameId], gameId);
 }
 
@@ -267,17 +289,6 @@ function proceedToNextTurn(io, game, botList, gameId) {
             console.log('game Phase',game.phase);
 
             switch (game.phase) {
-                case 'drawing':
-                case 'draw':
-                    bot.drawCard(game);
-                    game.phase = 'meld';
-                    break;
-
-                case 'meld':
-                    bot.makeMelds(game);
-                    game.phase = 'discarding';
-                    break;
-
                 case 'discarding':
                     bot.discardCard(game);
                     if(game.phase !== 'finished') {
@@ -285,6 +296,17 @@ function proceedToNextTurn(io, game, botList, gameId) {
                         startCallTimer(io, game, botList, gameId);
                     }
                     return; // Don't go to next turn yet
+
+                case 'meld':
+                    bot.makeMelds(game);
+                    game.phase = 'discarding';
+                    break;
+
+                case 'drawing':
+                case 'draw':
+                    bot.drawCard(game);
+                    game.phase = 'meld';
+                    break;
 
                 default:
                     break;
@@ -301,13 +323,36 @@ function proceedToNextTurn(io, game, botList, gameId) {
 function startCallTimer(io, game, botList, gameId) {
     // Give players 3 seconds to call
     console.log('Start Call Timer timeout');
+    if (game.phase === 'finished') return;
+    timeouts[gameId+'_bots'] = setTimeout(() => {
+        delete timeouts[gameId+'_bots'];
+        console.log('Fire Bot Call Timer timeout');
+
+        const previousPlayerIndex = (game.currentPlayerIndex - 1 + game.players.length) % game.players.length;
+        const previousPlayer = game.players[previousPlayerIndex];
+        const player = game.players[game.currentPlayerIndex];
+
+        console.log('player.id : ',player.id);
+        console.log('previousPlayer.id : ',previousPlayer.id);
+
+        const callableBots = botList.filter(bot => bot.id !== player.id && bot.id !== previousPlayer.id && !bot.player.hasLaidDown && bot.shouldCall(game));
+
+        if(callableBots.length < 1) return;
+        console.log('callableBots IDs:', callableBots.map(b => b.id));
+        handleCallCard({ id: callableBots[0].id }, gameId);
+
+
+        // game.phase = 'drawing';
+        // game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
+        // proceedToNextTurn(io, game, botList, gameId);
+    }, game.rules?.botThinkTimeMs);
     timeouts[gameId] = setTimeout(() => {
         delete timeouts[gameId];
         console.log('Fire Call Timer timeout');
         game.phase = 'drawing';
         // game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
         proceedToNextTurn(io, game, botList, gameId);
-    }, CALL_TIMER_DURATION_MS);
+    }, game.rules.callDurationTimerSec * 1000);
 
     io.to(gameId).emit('call_window_open', { gameId, game });
 }

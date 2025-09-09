@@ -1,7 +1,9 @@
 const {
     botPlayDraw,
     botPlayMelds,
-    botPlayDiscard
+    botPlayDiscard,
+    botAllowCall,
+    botMakeCall,
 } = require('./strategy');
 
 class KalookiBot {
@@ -21,10 +23,19 @@ class KalookiBot {
             name: this.name,
             hand: [],
             meldsToLay: [],
+            hasLaidDown:false,
             isBot: true
         };
         game.players.push(this.player);
         this.io.to(this.gameId).emit('player_joined', game.players);
+    }
+
+    shouldCall(gameState) {
+        return botMakeCall(this.player, gameState);
+    }
+
+    decideCall(gameState) {
+        return botAllowCall(this.player,gameState);
     }
 
     drawCard(gameState){

@@ -10,6 +10,7 @@ describe('extractMeldsFromHand', () => {
             { suit: 'clubs', rank: 4 },
             { suit: 'diamonds', rank: 4 }, // set of 4s
 
+            { suit: 'spades', rank: 5 },
             { suit: 'spades', rank: 6 },
             { suit: 'spades', rank: 7 },
             { suit: 'spades', rank: 8 }, // run of spades 6–7–8
@@ -17,7 +18,7 @@ describe('extractMeldsFromHand', () => {
             { suit: 'clubs', rank: 10 }, // not part of any meld
         ];
 
-        const result = extractMeldsFromHand(hand);
+        const result = extractMeldsFromHand(hand,1,1);
 
         expect(result).toHaveLength(2);
 
@@ -29,6 +30,7 @@ describe('extractMeldsFromHand', () => {
                     { suit: 'diamonds', rank: 4 }
                 ],
                 [
+                    { suit: 'spades', rank: 5 },
                     { suit: 'spades', rank: 6 },
                     { suit: 'spades', rank: 7 },
                     { suit: 'spades', rank: 8 }
@@ -45,7 +47,7 @@ describe('extractMeldsFromHand', () => {
             { suit: 'diamonds', rank: 11 }
         ];
 
-        const result = extractMeldsFromHand(hand);
+        const result = extractMeldsFromHand(hand,1,1);
 
         expect(result).toEqual([]);
     });
@@ -67,18 +69,37 @@ describe('extractMeldsFromHand', () => {
         { suit: '♦', rank: 3 },
         { suit: '♠', rank: 4 }
     ];
-        const result = extractMeldsFromHand(hand);
+        const result = extractMeldsFromHand(hand,1,1);
+
+        expect(result).toEqual([]);
+    });
+
+    it('bot-example', () => {
+        const hand =[
+            { suit: '♦', rank: 1 },
+            { suit: '♠', rank: 11 },
+            { suit: '♣', rank: 7 },
+            { suit: '♠', rank: 2 },
+            { suit: '♠', rank: 7 },
+            { suit: '♣', rank: 12 },
+            { suit: '♣', rank: 9 },
+            { suit: '♠', rank: 3 },
+            { suit: '♦', rank: 13 },
+            { suit: '♦', rank: 5 },
+            { suit: '♥', rank: 6 },
+            { suit: '♦', rank: 2 },
+            { suit: '♦', rank: 3 },
+            { suit: '♦', rank: 4 }
+        ];
+        const result = extractMeldsFromHand(hand,1,1);
 
         expect(result).toEqual([
             [
                 { suit: '♦', rank: 1 },
                 { suit: '♦', rank: 2 },
-                { suit: '♦', rank: 3 }
-            ],
-            [
-                { suit: '♠', rank: 2 },
-                { suit: '♠', rank: 3 },
-                { suit: '♠', rank: 4 }
+                { suit: '♦', rank: 3 },
+                { suit: '♦', rank: 4 },
+                { suit: '♦', rank: 5 },
             ]
         ]);
     });
@@ -92,7 +113,7 @@ describe('extractMeldsFromHand', () => {
             { suit: 'spades', rank: 10 }, // not part of any meld
         ];
 
-        const result = extractMeldsFromHand(hand);
+        const result = extractMeldsFromHand(hand,1,1);
 
         expect(result).toHaveLength(1);
 

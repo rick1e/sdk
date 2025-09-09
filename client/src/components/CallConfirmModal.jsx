@@ -25,13 +25,13 @@ const CallConfirmModal = ({ emit, callRequest, setCallRequest,isMyTurn }) => {
                                 onClick={handleAllow}
                                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                             >
-                                Allow
+                                Allow and Draw from Deck
                             </button>
                             <button
                                 onClick={handleDeny}
                                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                             >
-                                Deny
+                                Deny and Take Discard
                             </button>
                         </div>
                     </>
