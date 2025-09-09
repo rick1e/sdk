@@ -40,7 +40,7 @@ export const GameLobby = ({ playerName, setPlayerName, setPlayerId, gameId, setG
 
     return (
         <div className="p-4 space-y-3">
-            <h2 className="text-xl font-bold">Kalooki Game v0.3</h2>
+            <h2 className="text-xl font-bold">Kalooki Game v0.5</h2>
 
             <input
                 placeholder="Name"

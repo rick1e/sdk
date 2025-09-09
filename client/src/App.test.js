@@ -5,6 +5,6 @@ import App from './App';
 
 test('renders Kalooki Game', () => {
   render(<App />);
-  const linkElement = screen.getByText('Kalooki Game v0.3');
+  const linkElement = screen.getByText('Kalooki Game v0.5');
   expect(linkElement).toBeInTheDocument();
 });
