@@ -2,9 +2,12 @@
 import React, {useState} from "react";
 import {renderCard} from "../utils/utilsRender";
 
-export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard, meldSelection, setMeldSelection, emit, gameId, playerId }) => {
+export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard,
+                                 meldSelection, setMeldSelection, emit, gameId, playerId,isMyTurn }) => {
 
     const [draggingIndex, setDraggingIndex] = useState(-1);
+    const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
+
 
     const onDragStartHandler = (index) => {
         setDraggingIndex(index)
@@ -43,26 +46,80 @@ export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCar
         }
     }
 
+    const addMeld = (cards) => {
+        // Let the server handle the real update
+        emit('update_meld_draft_add', {
+            gameId,
+            cards: cards
+        }, (res) => {
+            if (res.error) {
+                console.error(res.error);
+                alert(res.error);
+            }
+        });
+    };
+
+    const onAddToSelectedMeld = () => {
+        emit('add_to_meld', {
+            gameId,
+            meldIndex: selectedMeldIndex,
+            cards: meldSelection
+        }, (res) => {
+            if (res.error) alert(res.error);
+            setMeldSelection([]);
+            setSelectedMeldIndex(null);
+        });
+    };
+
+    const canLay = () =>{
+        return !(game.phase === 'meld' && isMyTurn);
+    }
+
 
     return(
         <div>
-            <h3>Your Hand</h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                {hand.map((card, index) => {
-                    const isSelected = selectedCard === card;
-                    const isInMeld = meldSelection.includes(card);
+            <div className="game-section">
+                <h4>🃏 Your Hand</h4>
+                <div className="cards-container">
+                    {hand.map((card, index) => {
+                        const isSelected = selectedCard === card;
+                        const isInMeld = meldSelection.includes(card);
 
-                    return (
-                        <div
-                            key={index}
-                            draggable
-                            onDragStart={()=>{onDragStartHandler(index)}}
-                            onDrop={()=>{onDropHandler(index)}}
-                        >
-                            {renderCard(card,()=>{ renderCardCallbackHandler(game.phase,isInMeld,card) }, isSelected || isInMeld)}
-                        </div>
-                    );
-                })}
+                        return (
+                            <>
+                                {renderCard(card, () => {
+                                        renderCardCallbackHandler(game.phase, isInMeld, card)
+                                    },
+                                    isSelected || isInMeld,
+                                    () => {
+                                        onDragStartHandler(index)
+                                    },
+                                    () => {
+                                        onDropHandler(index)
+                                    }
+                                )}
+                            </>
+                        );
+                    })}
+                </div>
+
+                <button
+                    className={meldSelection.length < 1?"btn-disabled":"lay-melds-btn"}
+                    disabled={meldSelection.length < 1}
+                    onClick={() => {
+                        addMeld(meldSelection);
+                        setMeldSelection([]);
+                    }}
+                >+ Add Draft Meld</button>
+
+                {meldSelection.length > 0 && selectedMeldIndex !== null && (
+                    <button
+                        className={canLay()?"btn-disabled":"lay-melds-btn"}
+                        disabled={canLay()}
+                        onClick={onAddToSelectedMeld}>
+                        Add to Selected Meld
+                    </button>
+                )}
             </div>
         </div>
     );

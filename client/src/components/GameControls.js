@@ -1,7 +1,8 @@
 // GameControls.js
 import React from "react";
 
-export const GameControls = ({ gameId, gamePhase, discardValue, isMyTurn, emit }) => {
+export const GameControls = ({ gameId, gamePhase, debugMode, toggleDebugMode, emit }) => {
+
 
     const startGame = () => {
         emit('start_game', { gameId }, (res) => {
@@ -15,30 +16,26 @@ export const GameControls = ({ gameId, gamePhase, discardValue, isMyTurn, emit }
         });
     };
 
-    const drawCard = (fromDiscard = false) => {
-        emit('draw_card', { gameId, fromDiscard }, (res) => {
-            if (res.error) alert(res.error);
-        });
-    };
-
     return (
         <div>
+            <div className="debug-toggle">
+                <div className={`toggle-switch ${debugMode ? "active" : ""}`} onClick={toggleDebugMode}></div>
+                <label>Debug Mode</label>
+            </div>
+
             {gamePhase === 'waiting' && (
                 <>
-                    <button onClick={addBot}>Add Bot</button>
-                    <button onClick={startGame}>Start Game</button>
+                    <div className="actions-section">
+                        <button className="action-btn btn-secondary" onClick={addBot}>
+                            🤖 Add Bot
+                        </button>
+                        <button className="action-btn btn-primary" onClick={startGame}>
+                            🚀 Start Game
+                        </button>
+                    </div>
                 </>
             )}
 
-            {isMyTurn && gamePhase === 'drawing' && (
-                <>
-                    <h4>Draw a card</h4>
-                    <button onClick={() => drawCard(false)}>Draw from Deck</button>
-                    <button disabled={discardValue === 'empty'} onClick={() => drawCard(true)}>
-                        Draw from Discard ({discardValue})
-                    </button>
-                </>
-            )}
         </div>
     );
 };

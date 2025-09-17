@@ -20,12 +20,12 @@ const CountdownBar = ({ duration = 100 }) => {
     return (
         <div
             style={{
-                width: "80%",
+                width: "100%",
                 height: "40px",
                 background: "#333",
                 borderRadius: "8px",
                 overflow: "hidden",
-                margin: "20px auto"
+                margin: "0px auto"
             }}
         >
             <div

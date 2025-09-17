@@ -17,11 +17,12 @@ export const DiscardSection = ({ gameId, gamePhase, isMyTurn, emit, selectedCard
     };
 
     return(
-        <div>
+        isMyTurn && (gamePhase === 'discarding' || gamePhase === 'meld') && (
+        <div className="game-section">
             {isMyTurn && gamePhase === 'meld' && (
                 <>
                     <h4>Discard a card</h4>
-                    <button onClick={readyToDiscard} >
+                    <button className="lay-melds-btn" onClick={readyToDiscard} >
                         Ready to discard
                     </button>
                 </>
@@ -29,11 +30,12 @@ export const DiscardSection = ({ gameId, gamePhase, isMyTurn, emit, selectedCard
             {isMyTurn && gamePhase === 'discarding' && (
                 <>
                     <h4>Discard a card</h4>
-                    <button onClick={discard} disabled={!selectedCard}>
+                    <button className={!selectedCard?"btn-disabled":"lay-melds-btn"} onClick={discard} disabled={!selectedCard}>
                         Discard Selected
                     </button>
                 </>
             )}
         </div>
+        )
     );
 }

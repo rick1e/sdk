@@ -3,11 +3,6 @@
 const VALID_SET_LENGTH = 3;
 const isJoker = (card) => card.rank === 'JOKER';
 
-function isListContainsCard(needed, card) {
-    return needed.some(n =>
-        n.suit === card.suit && n.rank === card.rank
-    );
-}
 function isSuggestedContainsCard(needed, card) {
     return needed.some(n => {
         // skip invalid entries
@@ -279,6 +274,5 @@ function applyDuplicatePenalty(rankedHand, penalty = 2) {
 module.exports = {
     suggestNeededCards,
     isSuggestedContainsCard,
-    isListContainsCard,
     suggestDiscardableCards
 };

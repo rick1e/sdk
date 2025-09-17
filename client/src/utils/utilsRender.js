@@ -1,6 +1,6 @@
 import React from "react";
 
-export const renderCard = (card, onClick=()=>{}, highlight = false) => {
+export const renderCard = (card, onClick=()=>{}, highlight = false,onDrag,onDrop) => {
     if (!card) return null;
 
     // Translate rank
@@ -18,18 +18,14 @@ export const renderCard = (card, onClick=()=>{}, highlight = false) => {
 
     return (
         <div
+            draggable
+            onDragStart={onDrag}
+            onDrop={onDrop}
+            className={`card ${isRed? "red" : "black"}`}
             key={label + Math.random()}
             onClick={onClick}
             style={{
                 border: highlight ? '2px solid red' : '1px solid black',
-                padding: '8px',
-                margin: '4px',
-                display: 'inline-block',
-                cursor: 'pointer',
-                background: '#fff',
-                color: isRed ? 'red' : 'black',
-                fontWeight: 'bold',
-                fontSize: '16px'
             }}
         >
             {label}
