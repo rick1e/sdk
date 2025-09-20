@@ -6,7 +6,7 @@ import Game from "./components/Game";
 
 const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 const socket = io(backendUrl);
-const VERSION = '0.7.0';
+const VERSION = '0.7.3';
 
 const Kalooki = () => {
     const [game, setGame] = useState(null);

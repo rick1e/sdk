@@ -7,7 +7,7 @@ const {
 } = require('./strategy');
 
 class KalookiBot {
-    constructor(io, gameId, botName = "BotPlayer-"+Math.random().toString(36).substring(2, 3)) {
+    constructor(io, gameId, botName = "BotPlayer-"+Math.random().toString(36).substring(2, 5)) {
         this.io = io;
         this.gameId = gameId;
         this.name = botName;
