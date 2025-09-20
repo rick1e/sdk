@@ -3,10 +3,10 @@ import React, {useState} from "react";
 import {renderCard} from "../utils/utilsRender";
 
 export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard,
-                                 meldSelection, setMeldSelection, emit, gameId, playerId,isMyTurn }) => {
+                                 meldSelection, setMeldSelection, emit, gameId, playerId,isMyTurn,
+                                 selectedMeldIndex, setSelectedMeldIndex }) => {
 
     const [draggingIndex, setDraggingIndex] = useState(-1);
-    const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
 
 
     const onDragStartHandler = (index) => {
@@ -71,8 +71,8 @@ export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCar
         });
     };
 
-    const canLay = () =>{
-        return !(game.phase === 'meld' && isMyTurn);
+    const disableTackOn = () =>{
+        return !(meldSelection.length > 0 && selectedMeldIndex !== null && game.phase === 'meld' && isMyTurn);
     }
 
 
@@ -112,14 +112,12 @@ export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCar
                     }}
                 >+ Add Draft Meld</button>
 
-                {meldSelection.length > 0 && selectedMeldIndex !== null && (
-                    <button
-                        className={canLay()?"btn-disabled":"lay-melds-btn"}
-                        disabled={canLay()}
-                        onClick={onAddToSelectedMeld}>
-                        Add to Selected Meld
-                    </button>
-                )}
+                <button
+                    className={disableTackOn()?"btn-disabled":"lay-melds-btn"}
+                    disabled={disableTackOn()}
+                    onClick={onAddToSelectedMeld}>
+                    Add to Selected Meld
+                </button>
             </div>
         </div>
     );

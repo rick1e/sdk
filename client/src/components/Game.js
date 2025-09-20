@@ -13,6 +13,7 @@ import {DiscardPile} from "./DiscardPile";
 
 const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
     const [selectedCard, setSelectedCard] = useState(null);
+    const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
     const [meldSelection, setMeldSelection] = useState([]);
     const [callRequest, setCallRequest] = useState(null);
     const [callResponse, setCallResponse] = useState(null);
@@ -228,6 +229,8 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
                         gameId={game.id}
                         playerId={playerId}
                         isMyTurn={isMyTurn()}
+                        selectedMeldIndex={selectedMeldIndex}
+                        setSelectedMeldIndex={setSelectedMeldIndex}
                     />
 
 
@@ -239,6 +242,8 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
                         gameId={game.id}
                         game={game}
                         isMyTurn={isMyTurn()}
+                        selectedMeldIndex={selectedMeldIndex}
+                        setSelectedMeldIndex={setSelectedMeldIndex}
                     />
 
                     <GameFinished

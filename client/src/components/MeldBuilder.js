@@ -2,8 +2,7 @@
 import {renderCard} from "../utils/utilsRender";
 import React, {useState} from "react";
 
-export const MeldBuilder = ({ meldsToLay, emit, gameId, game, isMyTurn }) => {
-    const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
+export const MeldBuilder = ({ meldsToLay, emit, gameId, game, isMyTurn,selectedMeldIndex, setSelectedMeldIndex }) => {
 
     const removeMeld = (meld) => {
         emit('update_meld_draft_remove', {
