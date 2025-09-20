@@ -93,6 +93,8 @@ function resetGame(game) {
 
     game.players.forEach((p, idx) => {
         p.hand = hands[idx];
+        p.meldsToLay=[];
+        p.hasLaidDown=false;
     });
 
     game.deck = deck;
