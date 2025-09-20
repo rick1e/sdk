@@ -82,7 +82,7 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
     };
 
     const hasLaidDown = () => {
-        return myPlayer.hasLaidDown;
+        return myPlayer()?.hasLaidDown;
     };
 
     const isCanCall = () => {
