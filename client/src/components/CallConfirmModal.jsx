@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CallConfirmModal = ({ emit, callRequest, setCallRequest,isMyTurn }) => {
+const CallConfirmModal = ({ emit, callRequest, setCallRequest,isMyTurn,hasLaidDown }) => {
 
     const handleAllow = () => {
         emit('respond_to_call', { gameId: callRequest?.gameId, allow: true },() => {});
@@ -24,7 +24,10 @@ const CallConfirmModal = ({ emit, callRequest, setCallRequest,isMyTurn }) => {
                             <button className="draw-btn" onClick={handleAllow}>
                                 🂠 Allow and Draw from Deck
                             </button>
-                            <button className="draw-btn"  onClick={handleDeny}>
+                            <button
+                                disabled={hasLaidDown}
+                                className={hasLaidDown?"btn-disabled":"draw-btn"}
+                                onClick={handleDeny}>
                                 🗂️ Deny and Take Discard
                             </button>
                         </div>

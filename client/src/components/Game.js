@@ -89,7 +89,7 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
         const previousPlayerIndex = (game.currentPlayerIndex - 1 + game.players.length) % game.players.length;
         const currentPlayerId = game?.players?.[game.currentPlayerIndex]?.id;
         const previousPlayerId = game?.players?.[previousPlayerIndex]?.id;
-        return currentPlayerId !== playerId && previousPlayerId !== playerId && callRequest === null;
+        return currentPlayerId !== playerId && previousPlayerId !== playerId && callRequest === null && !hasLaidDown();
     };
 
     const toggleDebugMode = () => {
@@ -196,6 +196,7 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
                             callRequest={callRequest}
                             setCallRequest={setCallRequest}
                             isMyTurn={isMyTurn()}
+                            hasLaidDown={hasLaidDown()}
                         />
                     )}
 
@@ -231,6 +232,7 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
                         isMyTurn={isMyTurn()}
                         selectedMeldIndex={selectedMeldIndex}
                         setSelectedMeldIndex={setSelectedMeldIndex}
+                        hasLaidDown={hasLaidDown()}
                     />
 
 

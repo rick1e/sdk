@@ -2,7 +2,7 @@
 import React, {useState} from "react";
 import {renderCard} from "../utils/utilsRender";
 
-export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard,
+export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard,hasLaidDown,
                                  meldSelection, setMeldSelection, emit, gameId, playerId,isMyTurn,
                                  selectedMeldIndex, setSelectedMeldIndex }) => {
 
@@ -104,8 +104,8 @@ export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCar
                 </div>
 
                 <button
-                    className={meldSelection.length < 1?"btn-disabled":"lay-melds-btn"}
-                    disabled={meldSelection.length < 1}
+                    className={meldSelection.length < 1 || hasLaidDown?"btn-disabled":"lay-melds-btn"}
+                    disabled={meldSelection.length < 1 || hasLaidDown}
                     onClick={() => {
                         addMeld(meldSelection);
                         setMeldSelection([]);
