@@ -4,15 +4,15 @@ import CallConfirmModal from "./CallConfirmModal";
 import {GameControls} from "./GameControls";
 import {CallSection} from "./CallSection";
 import {DiscardSection} from "./DiscardSection";
-import {HandDisplay} from "./HandDisplay";
+// import {HandDisplay} from "./HandDisplay";
 import {MeldBuilder} from "./MeldBuilder";
 import React, {useEffect, useState} from "react";
 import {DrawSection} from "./DrawSection";
 import {DiscardPile} from "./DiscardPile";
+import {CardSelectorCombo} from "./CardSelectorCombo";
 
 
 const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
-    const [selectedCard, setSelectedCard] = useState(null);
     const [selectedMeldIndex, setSelectedMeldIndex] = useState(null);
     const [meldSelection, setMeldSelection] = useState([]);
     const [callRequest, setCallRequest] = useState(null);
@@ -149,115 +149,121 @@ const Game = ({socket, emit, playerId, setPlayerId, game, setGame,version}) => {
                 />
 
 
-                    <GameFinished
-                        emit={emit}
-                        gameId={game.id}
-                        gamePhase={game.phase}
-                        players={game.players}
-                        winner={game.winner}
-                        setSelectedCard={setSelectedCard}
-                        setMeldSelection={setMeldSelection}
-                    />
+                <GameFinished
+                    emit={emit}
+                    gameId={game.id}
+                    gamePhase={game.phase}
+                    players={game.players}
+                    winner={game.winner}
+                    setMeldSelection={setMeldSelection}
+                />
 
-                    <PlayerList
-                        players={game.players}
-                        currentPlayerIndex={game.currentPlayerIndex}
-                        debugMode={debugMode}
-                    />
+                <PlayerList
+                    players={game.players}
+                    currentPlayerIndex={game.currentPlayerIndex}
+                    debugMode={debugMode}
+                />
+
                 {game.phase !== 'waiting' && (
                     <>
-                    <DiscardPile
-                        discardPile={game.discardPile}
-                    />
+                        <DiscardPile
+                            discardPile={game.discardPile}
+                        />
 
-                    <CallSection
-                        emit={emit}
-                        game={game}
-                        canCall={isCanCall()}
-                        callRequest={callRequest}
-                        callResponse={callResponse}
-                    />
-
-
-
-                    {callResponse && (
-                        <div className="game-section">
-                            <h4>☎️ Call Response</h4>
-                            <div className="empty-state">
-                                <p>{callResponse}</p>
-                            </div>
-                        </div>
-                    )}
-
-
-                    {callRequest &&  (
-                        <CallConfirmModal
+                        <CallSection
                             emit={emit}
+                            game={game}
+                            canCall={isCanCall()}
                             callRequest={callRequest}
-                            setCallRequest={setCallRequest}
+                            callResponse={callResponse}
+                        />
+
+
+
+                        {callResponse && (
+                            <div className="game-section">
+                                <h4>☎️ Call Response</h4>
+                                <div className="empty-state">
+                                    <p>{callResponse}</p>
+                                </div>
+                            </div>
+                        )}
+
+
+                        {callRequest &&  (
+                            <CallConfirmModal
+                                emit={emit}
+                                callRequest={callRequest}
+                                setCallRequest={setCallRequest}
+                                isMyTurn={isMyTurn()}
+                                hasLaidDown={hasLaidDown()}
+                            />
+                        )}
+
+                        <DrawSection
+                            gameId={game.id}
+                            gamePhase={game.phase}
                             isMyTurn={isMyTurn()}
                             hasLaidDown={hasLaidDown()}
+                            emit={emit}
+                            discardValue={game.discardPile.slice(-1)[0]?.rank || 'empty'}
                         />
-                    )}
 
-                    <DrawSection
-                        gameId={game.id}
-                        gamePhase={game.phase}
-                        isMyTurn={isMyTurn()}
-                        hasLaidDown={hasLaidDown()}
-                        emit={emit}
-                        discardValue={game.discardPile.slice(-1)[0]?.rank || 'empty'}
-                    />
+                        <DiscardSection
+                            emit={emit}
+                            gameId={game.id}
+                            gamePhase={game.phase}
+                            isMyTurn={isMyTurn()}
+                            meldSelection={meldSelection}
+                            setMeldSelection={setMeldSelection}
+                        />
+                        {/*
+                        <HandDisplay
+                            game={game}
+                            setGame={setGame}
+                            hand={hand}
+                            meldSelection={meldSelection}
+                            setMeldSelection={setMeldSelection}
+                            emit={emit}
+                            gameId={game.id}
+                            playerId={playerId}
+                            isMyTurn={isMyTurn()}
+                            selectedMeldIndex={selectedMeldIndex}
+                            setSelectedMeldIndex={setSelectedMeldIndex}
+                            hasLaidDown={hasLaidDown()}
+                        />
+                        */}
 
-                    <DiscardSection
-                        emit={emit}
-                        gameId={game.id}
-                        gamePhase={game.phase}
-                        isMyTurn={isMyTurn()}
-                        selectedCard={selectedCard}
-                        setSelectedCard={setSelectedCard}
-                    />
-
-                    <HandDisplay
-                        game={game}
-                        setGame={setGame}
-                        hand={hand}
-                        selectedCard={selectedCard}
-                        setSelectedCard={setSelectedCard}
-                        meldSelection={meldSelection}
-                        setMeldSelection={setMeldSelection}
-                        emit={emit}
-                        gameId={game.id}
-                        playerId={playerId}
-                        isMyTurn={isMyTurn()}
-                        selectedMeldIndex={selectedMeldIndex}
-                        setSelectedMeldIndex={setSelectedMeldIndex}
-                        hasLaidDown={hasLaidDown()}
-                    />
+                        <CardSelectorCombo
+                            hand={hand}
+                            groups={meldsToLay}
+                            emit={emit}
+                            gameId={game.id}
+                            gamePhase={game.phase}
+                            isMyTurn={isMyTurn()}
+                            hasLaidDown={hasLaidDown()}
+                            selectedCards={meldSelection}
+                            setSelectedCards={setMeldSelection}
+                            selectedMeldIndex={selectedMeldIndex}
+                            setSelectedMeldIndex={setSelectedMeldIndex}
+                        />
 
 
-                    <MeldBuilder
-                        meldsToLay={meldsToLay}
-                        meldSelection={meldSelection}
-                        setMeldSelection={setMeldSelection}
-                        emit={emit}
-                        gameId={game.id}
-                        game={game}
-                        isMyTurn={isMyTurn()}
-                        selectedMeldIndex={selectedMeldIndex}
-                        setSelectedMeldIndex={setSelectedMeldIndex}
-                    />
+                        <MeldBuilder
+                            game={game}
+                            selectedMeldIndex={selectedMeldIndex}
+                            setSelectedMeldIndex={setSelectedMeldIndex}
+                        />
 
-                    <GameFinished
-                        emit={emit}
-                        gameId={game.id}
-                        gamePhase={game.phase}
-                        players={game.players}
-                        winner={game.winner}
-                        setSelectedCard={setSelectedCard}
-                        setMeldSelection={setMeldSelection}
-                    />
-                </>
+                        <GameFinished
+                            emit={emit}
+                            gameId={game.id}
+                            gamePhase={game.phase}
+                            players={game.players}
+                            winner={game.winner}
+                            setMeldSelection={setMeldSelection}
+                        />
+                    </>
                 )}
             </div>
         </div>

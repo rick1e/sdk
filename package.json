@@ -11,6 +11,16 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "jest": {
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "server/**/*.{js,jsx,ts,tsx}",
+      "src/**/*.{js,jsx,ts,tsx}",
+      "!src/index.js",
+      "!src/serviceWorker.js"
+    ],
+    "coverageReporters": ["text", "lcov", "json"]
+  },
   "dependencies": {
     "express": "4.20.0",
     "socket.io": "^4.8.1"

@@ -40,6 +40,9 @@ io.on('connection', socket => {
     socket.on('update_hand_order', handleUpdateHandOrder);
     socket.on('update_meld_draft_add', handleUpdateMeldDraftAdd);
     socket.on('update_meld_draft_remove', handleUpdateMeldDraftRemove);
+    socket.on('update_meld_draft_remove_card',handleUpdateMeldDraftRemoveCard);
+    socket.on('update_meld_draft_order',handleUpdateMeldDraftOrder);
+    socket.on('update_meld_draft_add_cards',handleUpdateMeldDraftAddCards);
 
     // --- Call Logic ---
     socket.on('call_card', ({ gameId }) => handleCallCard(socket, gameId));
@@ -152,6 +155,7 @@ function handleUpdateHandOrder({ gameId, newHand }, cb) {
 }
 
 function handleUpdateMeldDraftAdd({ gameId, cards }, cb) {
+    console.log('----- handling draft Add -----');
     const game = games[gameId];
     if (!game) return cb({ error: 'Game not found' });
 
@@ -202,6 +206,87 @@ function handleUpdateMeldDraftRemove({ gameId, meld }, cb) {
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
 }
+
+function handleUpdateMeldDraftOrder({ gameId, meldIndex, meld }, cb) {
+    console.log('----- handling draft order -----');
+    const game = games[gameId];
+    const player = game.players.find(p => p.id === this.id);
+    if (!player) return cb({ error: 'Player not found' });
+
+    const existingMeld = player.meldsToLay[meldIndex];
+
+    if (!gameLogic.isSameMeld(existingMeld, meld)) {
+        return cb({ error: 'Meld not found' });
+    }
+
+    player.meldsToLay[meldIndex] = meld;
+
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleUpdateMeldDraftRemoveCard({ gameId, meldIndex, card }, cb) {
+    const game = games[gameId];
+    const player = game.players.find(p => p.id === this.id);
+    if (!player) return cb({ error: 'Player not found' });
+
+    const meld = player.meldsToLay[meldIndex];
+    if (!meld) {
+        return cb({ error: 'Meld not found' });
+    }
+
+    // find the card inside the meld
+    const cardIndex = meld.findIndex(c =>
+        c.suit === card.suit && c.rank === card.rank
+    );
+    if (cardIndex === -1) {
+        return cb({ error: 'Card not found in meld' });
+    }
+
+    // remove the card from the meld
+    const [removedCard] = meld.splice(cardIndex, 1);
+    player.hand.push(removedCard);
+
+    // if meld becomes empty, remove the meld itself
+    if (meld.length === 1) {
+        const [removedLastCard] = meld.splice(0, 1);
+        player.hand.push(removedLastCard);
+        player.meldsToLay.splice(meldIndex, 1);
+    }
+
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
+function handleUpdateMeldDraftAddCards({ gameId, meldIndex, cards }, cb) {
+    const game = games[gameId];
+    const player = game.players.find(p => p.id === this.id);
+    if (!player) return cb({ error: 'Player not found' });
+
+    const meld = player.meldsToLay[meldIndex];
+    if (!meld) {
+        return cb({ error: 'Meld not found' });
+    }
+
+    const tempHand = [...player.hand];
+    console.log('----- cards -----');
+    console.log(cards);
+    for (let card of cards) {
+        const idx = tempHand.findIndex(c => c.rank === card.rank && c.suit === card.suit);
+        if (idx === -1) {
+            return cb({ error: 'Invalid move: card not in hand' });
+        }
+        tempHand.splice(idx, 1); // remove matched card
+    }
+
+    // Move cards from hand to meld
+    player.hand = tempHand;
+    meld.push(...cards);
+
+    io.to(gameId).emit('game_update', game);
+    cb({ success: true });
+}
+
 
 function handleCallCard(socket, gameId) {
     const game = games[gameId];

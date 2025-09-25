@@ -1,11 +1,11 @@
 import React from "react";
 
-export const GameFinished = ({ gameId, gamePhase, players,winner, emit, setSelectedCard, setMeldSelection }) => {
+export const GameFinished = ({ gameId, gamePhase, players,winner, emit, setMeldSelection }) => {
 
     const playAgain = () => {
         emit('reset_game', { gameId }, (res) => {
             if (res.error) alert(res.error);
-            setSelectedCard(null);
+            // TODO: Find a better place to do this
             setMeldSelection([]);
         });
     };

@@ -1,5 +1,8 @@
 import React from "react";
 
+
+// TODO: replace renderCard with Card Component
+
 export const renderCard = (card, onClick=()=>{}, highlight = false,onDrag,onDrop) => {
     if (!card) return null;
 

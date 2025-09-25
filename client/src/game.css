@@ -300,12 +300,12 @@ body {
 .lay-melds-btn {
     background: #28a745;
     color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    border: 1px solid #28a745!important;
 }
 
 .lay-melds-btn:hover {
@@ -777,6 +777,7 @@ body {
     cursor: not-allowed !important;
     transform: none !important;
     box-shadow: none !important;
+    font-weight: 600;
     padding: 8px 16px;
     border-radius: 6px;
     transition: all 0.3s ease;

@@ -1,68 +1,11 @@
 // MeldBuilder.js
-import {renderCard} from "../utils/utilsRender";
 import React from "react";
+import Card from "./Card";
 
-export const MeldBuilder = ({ meldsToLay, emit, gameId, game, isMyTurn,selectedMeldIndex, setSelectedMeldIndex }) => {
+export const MeldBuilder = ({ game, selectedMeldIndex, setSelectedMeldIndex }) => {
 
-    const removeMeld = (meld) => {
-        emit('update_meld_draft_remove', {
-            gameId,
-            meld
-        }, (res) => {
-            if (res.error) {
-                console.error(res.error);
-                alert(res.error);
-            }
-        });
-    };
-
-    const onLayDownList = () => {
-
-        emit('lay_down_meld_list', { gameId }, (res) => {
-            if (res.error) {
-                alert(res.error);
-            }
-        });
-    };
-
-    const canLay = () =>{
-        return !(game.phase === 'meld' && isMyTurn);
-    }
     return(
         <div>
-            <div className="game-section">
-                <h4>📋 Your Melds to Lay</h4>
-                {meldsToLay.length === 0 ?
-                    <div className="empty-state">
-                        <p>No melds selected yet.</p>
-                    </div> : (
-                        meldsToLay.map((meld, idx) => (
-                            <div key={idx} className="cards-container">
-                                {meld.map(card => renderCard(card))}
-                                <button
-                                    className="remove-btn"
-                                    onClick={() => {
-                                        removeMeld(meld);
-                                    }}
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        ))
-                    )}
-
-                {meldsToLay.length > 0 && (
-                    <button
-                        className={canLay()?"btn-disabled":"lay-melds-btn"}
-                        onClick={onLayDownList}
-                        disabled={canLay()}
-                    >
-                        Lay All Melds
-                    </button>
-                )}
-            </div>
-
-
 
             <div className="game-section">
                 <h4>🏆 Laid Down Melds</h4>
@@ -74,7 +17,23 @@ export const MeldBuilder = ({ meldsToLay, emit, gameId, game, isMyTurn,selectedM
                         return (
                             <div className="cards-container" key={idx} style={{marginBottom: '10px'}}>
                                 <strong>{player?.name || 'Player'}:</strong>{' '}
-                                {meld.cards.map(card => renderCard(card))}
+                                <div
+                                    style={{
+                                        position: 'relative',
+                                        width: `${50 + (meld.cards.length - 1) * 22}px`,
+                                        height: `${70}px` // extra space for name
+                                    }}
+                                >
+                                    {meld.cards.map((card,index) => <Card
+                                        key={index}
+                                        card={card}
+                                        isSelected={false}
+                                        onClick={()=>{}}
+                                        isGroup={true}
+                                        isLast={meld.cards.length -1 === index}
+                                        index={index}
+                                    />)}
+                                </div>
                                 <button
                                     className="lay-melds-btn"
                                     style={{

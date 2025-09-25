@@ -2,7 +2,7 @@
 import React, {useState} from "react";
 import {renderCard} from "../utils/utilsRender";
 
-export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCard,hasLaidDown,
+export const  HandDisplay = ({ game, hand, setGame, selectedCard,hasLaidDown,
                                  meldSelection, setMeldSelection, emit, gameId, playerId,isMyTurn,
                                  selectedMeldIndex, setSelectedMeldIndex }) => {
 
@@ -37,13 +37,9 @@ export const  HandDisplay = ({ game, hand, setGame, selectedCard, setSelectedCar
     }
 
     const renderCardCallbackHandler = (gamePhase,isInMeld,card) => {
-        if (gamePhase === 'discarding') {
-            setSelectedCard(card);
-        } else {
-            setMeldSelection((prev) =>
+        setMeldSelection((prev) =>
                 isInMeld ? prev.filter((c) => c !== card) : [...prev, card]
             );
-        }
     }
 
     const addMeld = (cards) => {
