@@ -12,7 +12,6 @@ class KalookiBot {
         this.gameId = gameId;
         this.name = botName;
         this.id = `bot-${Date.now()}`;
-        this.hand = [];
     }
 
     joinGame(game) {
