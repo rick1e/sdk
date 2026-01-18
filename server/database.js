@@ -1,205 +1,212 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
 
 class Database {
-    constructor(dbPath = './data/kalooki.db') {
-        this.dbPath = dbPath;
-        this.db = null;
+    constructor() {
+        // Check if Supabase credentials are available
+        if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+            console.warn('⚠️  Supabase credentials not found in environment variables.');
+            console.warn('Please set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file');
+            console.warn('See .env.example for configuration template');
+            this.supabase = null;
+        } else {
+            // Initialize Supabase client
+            this.supabase = createClient(
+                process.env.SUPABASE_URL,
+                process.env.SUPABASE_ANON_KEY
+            );
+        }
     }
 
     async initialize() {
-        return new Promise((resolve, reject) => {
-            // Ensure data directory exists
-            const fs = require('fs');
-            const dir = path.dirname(this.dbPath);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
+        if (!this.supabase) {
+            console.warn('⚠️  Supabase not configured. Database operations will fail.');
+            return Promise.resolve();
+        }
 
-            this.db = new sqlite3.Database(this.dbPath, (err) => {
-                if (err) {
-                    console.error('Error opening database:', err.message);
-                    reject(err);
-                } else {
-                    console.log('Connected to SQLite database.');
-                    this.createTables().then(resolve).catch(reject);
-                }
-            });
-        });
+        try {
+            // Test the connection by checking if the table exists
+            const { error } = await this.supabase
+                .from('games')
+                .select('count')
+                .limit(1);
+            
+            if (error && error.code !== 'PGRST116') {
+                // PGRST116 means table doesn't exist, which is ok for first run
+                console.error('Error connecting to Supabase:', error.message);
+                throw error;
+            }
+            
+            console.log('Connected to Supabase database.');
+            return Promise.resolve();
+        } catch (error) {
+            console.error('Failed to initialize Supabase database:', error);
+            throw error;
+        }
     }
 
     async createTables() {
-        return new Promise((resolve, reject) => {
-            const createGamesTable = `
-                CREATE TABLE IF NOT EXISTS games (
-                    game_id TEXT PRIMARY KEY,
-                    game_state TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    is_active BOOLEAN DEFAULT 1
-                )
-            `;
-
-            this.db.run(createGamesTable, (err) => {
-                if (err) {
-                    console.error('Error creating games table:', err.message);
-                    reject(err);
-                } else {
-                    console.log('Games table created or already exists.');
-                    resolve();
-                }
-            });
-        });
+        // In Supabase, tables are created via the dashboard or SQL editor
+        // This method is kept for compatibility but doesn't need to do anything
+        console.log('Tables should be created in Supabase dashboard. See SQL in docs.');
+        return Promise.resolve();
     }
 
     async saveGame(gameId, gameState) {
-        if (!this.db) {
-            throw new Error('Database not initialized');
+        if (!this.supabase) {
+            throw new Error('Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in environment variables.');
         }
 
-        return new Promise((resolve, reject) => {
-            const serializedState = JSON.stringify(gameState);
-            const sql = `
-                INSERT OR REPLACE INTO games (game_id, game_state, updated_at, is_active)
-                VALUES (?, ?, CURRENT_TIMESTAMP, ?)
-            `;
-
-            this.db.run(sql, [gameId, serializedState, gameState.phase !== 'finished'], function(err) {
-                if (err) {
-                    console.error('Error saving game:', err.message);
-                    reject(err);
-                } else {
-                    resolve({ gameId, changes: this.changes });
-                }
-            });
-        });
+        try {
+            const { data, error } = await this.supabase
+                .from('games')
+                .upsert({
+                    game_id: gameId,
+                    game_state: gameState, // JSONB auto-serialized
+                    updated_at: new Date().toISOString(),
+                    is_active: gameState.phase !== 'finished'
+                }, {
+                    onConflict: 'game_id' // Upsert on game_id conflict
+                });
+            
+            if (error) {
+                console.error('Error saving game:', error.message);
+                throw error;
+            }
+            
+            return { gameId, changes: 1 };
+        } catch (error) {
+            console.error('Failed to save game:', error);
+            throw error;
+        }
     }
 
     async loadGame(gameId) {
-        if (!this.db) {
-            throw new Error('Database not initialized');
+        if (!this.supabase) {
+            throw new Error('Supabase not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in environment variables.');
         }
 
-        return new Promise((resolve, reject) => {
-            const sql = 'SELECT game_state FROM games WHERE game_id = ? AND is_active = 1';
+        try {
+            const { data, error } = await this.supabase
+                .from('games')
+                .select('game_state')
+                .eq('game_id', gameId)
+                .eq('is_active', true)
+                .single();
             
-            this.db.get(sql, [gameId], (err, row) => {
-                if (err) {
-                    console.error('Error loading game:', err.message);
-                    reject(err);
-                } else if (!row) {
-                    resolve(null);
-                } else {
-                    try {
-                        const gameState = JSON.parse(row.game_state);
-                        resolve(gameState);
-                    } catch (parseErr) {
-                        console.error('Error parsing game state:', parseErr.message);
-                        reject(parseErr);
-                    }
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    // No rows returned, game not found
+                    return null;
                 }
-            });
-        });
+                console.error('Error loading game:', error.message);
+                throw error;
+            }
+            
+            return data?.game_state || null;
+        } catch (error) {
+            console.error('Failed to load game:', error);
+            throw error;
+        }
     }
 
     async loadAllActiveGames() {
-        if (!this.db) {
-            throw new Error('Database not initialized');
+        if (!this.supabase) {
+            console.warn('⚠️  Supabase not configured. Returning empty games object.');
+            return {};
         }
 
-        return new Promise((resolve, reject) => {
-            const sql = 'SELECT game_id, game_state FROM games WHERE is_active = 1';
+        try {
+            const { data, error } = await this.supabase
+                .from('games')
+                .select('game_id, game_state')
+                .eq('is_active', true);
             
-            this.db.all(sql, [], (err, rows) => {
-                if (err) {
-                    console.error('Error loading all games:', err.message);
-                    reject(err);
-                } else {
-                    const games = {};
-                    rows.forEach(row => {
-                        try {
-                            games[row.game_id] = JSON.parse(row.game_state);
-                        } catch (parseErr) {
-                            console.error(`Error parsing game ${row.game_id}:`, parseErr.message);
-                        }
-                    });
-                    resolve(games);
-                }
+            if (error) {
+                console.error('Error loading all games:', error.message);
+                throw error;
+            }
+            
+            const games = {};
+            data.forEach(row => {
+                games[row.game_id] = row.game_state;
             });
-        });
+            return games;
+        } catch (error) {
+            console.error('Failed to load all active games:', error);
+            throw error;
+        }
     }
 
     async deleteGame(gameId) {
-        if (!this.db) {
-            throw new Error('Database not initialized');
-        }
-
-        return new Promise((resolve, reject) => {
-            const sql = 'DELETE FROM games WHERE game_id = ?';
+        try {
+            const { data, error } = await this.supabase
+                .from('games')
+                .delete()
+                .eq('game_id', gameId);
             
-            this.db.run(sql, [gameId], function(err) {
-                if (err) {
-                    console.error('Error deleting game:', err.message);
-                    reject(err);
-                } else {
-                    resolve({ gameId, changes: this.changes });
-                }
-            });
-        });
+            if (error) {
+                console.error('Error deleting game:', error.message);
+                throw error;
+            }
+            
+            return { gameId, changes: 1 };
+        } catch (error) {
+            console.error('Failed to delete game:', error);
+            throw error;
+        }
     }
 
     async markGameInactive(gameId) {
-        if (!this.db) {
-            throw new Error('Database not initialized');
-        }
-
-        return new Promise((resolve, reject) => {
-            const sql = 'UPDATE games SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE game_id = ?';
+        try {
+            const { data, error } = await this.supabase
+                .from('games')
+                .update({ 
+                    is_active: false, 
+                    updated_at: new Date().toISOString() 
+                })
+                .eq('game_id', gameId);
             
-            this.db.run(sql, [gameId], function(err) {
-                if (err) {
-                    console.error('Error marking game inactive:', err.message);
-                    reject(err);
-                } else {
-                    resolve({ gameId, changes: this.changes });
-                }
-            });
-        });
+            if (error) {
+                console.error('Error marking game inactive:', error.message);
+                throw error;
+            }
+            
+            return { gameId, changes: 1 };
+        } catch (error) {
+            console.error('Failed to mark game inactive:', error);
+            throw error;
+        }
     }
 
     async cleanupOldGames(daysOld = 7) {
-        if (!this.db) {
-            throw new Error('Database not initialized');
-        }
-
-        return new Promise((resolve, reject) => {
-            const sql = `
-                DELETE FROM games 
-                WHERE is_active = 0 AND updated_at < datetime('now', '-${daysOld} days')
-            `;
+        try {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysOld);
             
-            this.db.run(sql, [], function(err) {
-                if (err) {
-                    console.error('Error cleaning up old games:', err.message);
-                    reject(err);
-                } else {
-                    console.log(`Cleaned up ${this.changes} old games.`);
-                    resolve({ changes: this.changes });
-                }
-            });
-        });
+            const { data, error } = await this.supabase
+                .from('games')
+                .delete()
+                .eq('is_active', false)
+                .lt('updated_at', cutoffDate.toISOString());
+            
+            if (error) {
+                console.error('Error cleaning up old games:', error.message);
+                throw error;
+            }
+            
+            const deletedCount = Array.isArray(data) ? data.length : 0;
+            console.log(`Cleaned up ${deletedCount} old games.`);
+            return { changes: deletedCount };
+        } catch (error) {
+            console.error('Failed to cleanup old games:', error);
+            throw error;
+        }
     }
 
     close() {
-        if (this.db) {
-            this.db.close((err) => {
-                if (err) {
-                    console.error('Error closing database:', err.message);
-                } else {
-                    console.log('Database connection closed.');
-                }
-            });
-        }
+        // Supabase client doesn't need explicit closing like SQLite
+        console.log('Supabase client connection closed.');
     }
 }
 

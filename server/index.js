@@ -238,7 +238,7 @@ async function handleJoinGame(socket, { gameId, playerName }, cb) {
     socket.join(gameId);
     
     // Save game state after player joins
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
     
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
@@ -253,7 +253,7 @@ async function handleRejoinGame(socket, { gameId, playerName }, cb) {
     socket.join(gameId);
     
     // Save game state after player rejoins
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
     
     cb({ success: true, game, playerId: socket.id });
 }
@@ -352,7 +352,7 @@ async function handleAddToMeld(socket, { gameId, meldIndex, cards }, cb) {
     const result = gameLogic.addToMeld(game, socket.id, meldIndex, cards);
     
     // Save game state after adding to meld
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
     
     io.to(gameId).emit('game_update', game);
     cb(result);
@@ -365,7 +365,7 @@ async function handleUpdateHandOrder({ gameId, newHand }, cb) {
     player.hand = newHand;
     
     // Save game state after hand reordering
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
     
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
@@ -399,7 +399,7 @@ async function handleUpdateMeldDraftAdd({ gameId, cards }, cb) {
     player.meldsToLay.push(cards);
 
     // Save game state after meld draft changes
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
 
     // Broadcast update
     io.to(gameId).emit('game_update', game);
@@ -424,7 +424,7 @@ async function handleUpdateMeldDraftRemove({ gameId, meld }, cb) {
     player.hand.push(...removedMeld);
 
     // Save game state after meld draft changes
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
 
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
@@ -445,7 +445,7 @@ async function handleUpdateMeldDraftOrder({ gameId, meldIndex, meld }, cb) {
     player.meldsToLay[meldIndex] = meld;
 
     // Save game state after meld draft changes
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
 
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
@@ -481,7 +481,7 @@ async function handleUpdateMeldDraftRemoveCard({ gameId, meldIndex, card }, cb) 
     }
 
     // Save game state after meld draft changes
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
 
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
@@ -513,7 +513,7 @@ async function handleUpdateMeldDraftAddCards({ gameId, meldIndex, cards }, cb) {
     meld.push(...cards);
 
     // Save game state after meld draft changes
-    await saveGameState(gameId, game);
+    // await saveGameState(gameId, game);
 
     io.to(gameId).emit('game_update', game);
     cb({ success: true });
@@ -726,8 +726,8 @@ process.on('SIGINT', async () => {
                 game.timerState = null;
             }
             
-            await persistence.saveGame(gameId, game);
-            console.log(`Saved game ${gameId} on shutdown`);
+            // await persistence.saveGame(gameId, game);
+            // console.log(`Saved game ${gameId} on shutdown`);
         } catch (error) {
             console.error(`Failed to save game ${gameId} on shutdown:`, error);
         }
